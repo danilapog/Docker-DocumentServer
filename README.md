@@ -17,10 +17,6 @@
 * [Issues](#issues)
     - [Docker Issues](#docker-issues)
     - [Document Server usage Issues](#document-server-usage-issues)
-* [About security](#security)
-    - [Verify GitHub artifact attestation](#verify-github-artifact-attestation)
-    - [Inspect embedded SBOM](#inspect-embedded-sbom)
-    - [Inspect embedded build provenance](#inspect-embedded-build-provenance)
 * [Project Information](#project-information)
 * [User Feedback and Support](#user-feedback-and-support)
 
@@ -408,64 +404,6 @@ sudo docker exec <CONTAINER> documentserver-prepare4shutdown.sh
 ```
 
 Please note, that both executing the script and disconnecting users may take a long time (up to 5 minutes).
-
-### Security
-
-Our images are signed and attested using GitHub artifact attestations and embedded SLSA provenance. You can verify image authenticity and inspect supply chain metadata using the steps below.
-
-#### Prerequisites
-
-You will need:
-
-- [GitHub CLI](https://cli.github.com/) (`gh`) — for verifying GitHub attestations.
-- [Docker](https://docs.docker.com/get-docker/) with [Buildx](https://docs.docker.com/buildx/working-with-buildx/) — for inspecting embedded SBOM and provenance.
-
-Authenticate before running the commands:
-
-```bash
-# Log in to GitHub CLI
-gh auth login
-
-# Log in to Docker Hub (required for inspecting private metadata)
-docker login
-```
-
-#### Verify GitHub artifact attestation
-
-GitHub attestation cryptographically binds the image to the workflow run that produced it. To verify:
-
-```bash
-gh attestation verify oci://docker.io/onlyoffice/documentserver:9.4.0-1 \
-  -R onlyoffice/Docker-DocumentServer
-```
-
-A successful verification confirms that the image was built by the official `onlyoffice/Docker-DocumentServer` workflow on GitHub Actions and has not been tampered with since.
-
-#### Inspect embedded SBOM
-
-Each image ships with an SBOM (Software Bill of Materials) attached as an in-toto attestation. You can extract and inspect it using `docker buildx imagetools`:
-
-```bash
-# View SBOM for a multi-arch image (specify platform)
-docker buildx imagetools inspect docker.io/onlyoffice/documentserver:9.4.0-1 \
-  --format '{{ json (index .SBOM "linux/amd64").SPDX }}'
-```
-
-To save the SBOM to a file for further analysis with tools like `grype` or `trivy`:
-
-```bash
-docker buildx imagetools inspect docker.io/onlyoffice/documentserver:9.4.0-1 \
-  --format '{{ json (index .SBOM "linux/amd64").SPDX }}' > sbom.spdx.json
-```
-
-#### Inspect embedded build provenance
-
-The image also includes SLSA build provenance metadata describing how it was built:
-
-```bash
-docker buildx imagetools inspect docker.io/onlyoffice/documentserver:9.4.0-1 \
-  --format '{{ json (index .Provenance "linux/amd64").SLSA }}'
-```
 
 ## Project Information
 
