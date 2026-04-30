@@ -170,7 +170,10 @@ jobs:
 
           ### ==>> Build and push images at this step ###
 
-          docker buildx bake --sbom=true --provenance=mode=max -f docker-bake.hcl "${IMAGE}" --push
+          docker buildx bake --sbom=true \
+                             --provenance=mode=max \
+                             --metadata-file metadata.json \
+                             -f docker-bake.hcl "${IMAGE}" --push
           echo "DONE: Build success"
 
           ### Set output for Zap scanner
@@ -199,6 +202,23 @@ jobs:
                  -f branch="${BRANCH}" \
                  -f version="${VERSION}"
         shell: bash
+
+      - name: Extract digest and image name
+        id: image
+        run: |
+          NAME=$(jq -r '."${{ matrix.image }}"."image.name" | split(",")[0]' metadata.json)
+          DIGEST=$(jq -r '."${{ matrix.image }}"."containerimage.digest"' metadata.json)
+          REPO="${NAME%:*}"
+          echo "name=$REPO" >> "$GITHUB_OUTPUT"
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Attest build provenance
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true
 
       - name: Save build result to file
         if: always()
@@ -240,6 +260,7 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
       - name: "Make images documentserver"
+        id: manifest
         env:
           EDITION: ${{ matrix.edition }}
           BUILD_NUMBER: ${{ github.event.inputs.build }}
@@ -320,6 +341,13 @@ jobs:
 
            docker buildx imagetools create "${PUSH_TAGS[@]}" "${FROM_TAGS[@]}"
 
+           FINAL_TAG="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${PRODUCT_EDITION}:${TAG}"
+           INDEX_DIGEST=$(docker buildx imagetools inspect "$FINAL_TAG" --format '{{ .Manifest.Digest }}')
+
+           REPO="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${PRODUCT_EDITION}"
+           echo "name=$REPO" >> "$GITHUB_OUTPUT"
+           echo "index_digest=$INDEX_DIGEST" >> "$GITHUB_OUTPUT"
+
            ### ==>> Cleanup platform-specific tags ###
 
            REPO="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${PRODUCT_EDITION}"
@@ -353,3 +381,10 @@ jobs:
                echo "WARNING: Unexpected status ${HTTP_STATUS} when deleting ${IMG}"
              fi
            done
+
+      - name: Attest build provenance for multi-arch index
+        uses: actions/attest@v4
+        with:
+          subject-name: docker.io/${{ steps.manifest.outputs.name }}
+          subject-digest: ${{ steps.manifest.outputs.index_digest }}
+          push-to-registry: true
