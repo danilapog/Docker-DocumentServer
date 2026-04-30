@@ -17,7 +17,7 @@
 * [Issues](#issues)
     - [Docker Issues](#docker-issues)
     - [Document Server usage Issues](#document-server-usage-issues)
-* [About security](#secutiry)
+* [About security](#security)
     - [Verify GitHub artifact attestation](#verify-github-artifact-attestation)
     - [Inspect embedded SBOM](#inspect-embedded-sbom)
     - [Inspect embedded build provenance](#inspect-embedded-build-provenance)
@@ -449,6 +449,7 @@ Each image ships with an SBOM (Software Bill of Materials) attached as an in-tot
 # View SBOM for a multi-arch image (specify platform)
 docker buildx imagetools inspect docker.io/onlyoffice/documentserver:9.4.0-1 \
   --format '{{ json (index .SBOM "linux/amd64").SPDX }}'
+```
 
 To save the SBOM to a file for further analysis with tools like `grype` or `trivy`:
 
