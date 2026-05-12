@@ -68,10 +68,10 @@ jobs:
                -t "${RELEASE_IMAGE}:${SHORTER_TAG}"
                -t "${RELEASE_IMAGE}:${SHORTEST_TAG}"
             )
-            if "${LATEST}"; then
-              PUSH_TAGS+=( "-t $RELEASE_IMAGE:latest" )
+            if [ "${LATEST}" = "true" ]; then
+              PUSH_TAGS+=( "-t" "$RELEASE_IMAGE:latest" )
             fi
-            docker buildx imagetools create "${PUSH_TAGS[@]}" ${SOURCE_IMAGE}
+            docker buildx imagetools create "${PUSH_TAGS[@]}" "${SOURCE_IMAGE}"
         shell: bash
 
      # Disable for now
