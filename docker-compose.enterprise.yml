@@ -2,10 +2,10 @@ services:
   onlyoffice-documentserver:
     build:
       context: .
-      target: documentserver-enterprise
+      dockerfile: Dockerfile.enterprise
       args:
         - PRODUCT_EDITION=-ee
-    image: onlyoffice/documentserver-ee
+    image: onlyoffice/documentserver-ee:${TAG:-latest}
     container_name: onlyoffice-documentserver
     depends_on:
       - onlyoffice-postgresql

@@ -34,10 +34,6 @@ variable "PACKAGE_VERSION" {
     default = ""
 }
 
-variable "DOCKERFILE" {
-    default = ""
-}
-
 variable "PLATFORM" {
     default = ""
 }
@@ -68,10 +64,6 @@ variable "BASE_VERSION" {
     default     = ""
 }
 
-variable "PACKAGE_SUFFIX" {
-    default     = ""
-}
-
 variable "PG_VERSION" {
     default     = ""
 }
@@ -87,8 +79,7 @@ variable "UCS_PREFIX" {
 ### ↑ Variables for UCS build ↑
 
 target "documentserver" {
-    target = PRODUCT_EDITION == "" ? "documentserver-community" : "documentserver-enterprise"
-    dockerfile = "${DOCKERFILE}"
+    dockerfile = PRODUCT_EDITION == "" ? "Dockerfile" : "Dockerfile.enterprise"
     tags = [
            "docker.io/${COMPANY_NAME}/${PREFIX_NAME}${PRODUCT_NAME}${PRODUCT_EDITION}:${TAG}"
            ]
@@ -120,8 +111,7 @@ target "documentserver-stable" {
 }
 
 target "documentserver-ucs" {
-    target = PRODUCT_EDITION == "" ? "documentserver-community" : "documentserver-enterprise"
-    dockerfile = "${DOCKERFILE}"
+    dockerfile = PRODUCT_EDITION == "" ? "Dockerfile" : "Dockerfile.enterprise"
     tags = [
            "docker.io/${COMPANY_NAME}/${PRODUCT_NAME}${PRODUCT_EDITION}-ucs:${TAG}"
            ]
@@ -132,7 +122,6 @@ target "documentserver-ucs" {
         "COMPANY_NAME": "${COMPANY_NAME}"
         "PACKAGE_VERSION": "${PACKAGE_VERSION}"
         "PACKAGE_BASEURL": "${PACKAGE_BASEURL}"
-        "PACKAGE_SUFFIX": "${PACKAGE_SUFFIX}"
         "BASE_VERSION": "${BASE_VERSION}"
         "PG_VERSION": "${PG_VERSION}"
     }

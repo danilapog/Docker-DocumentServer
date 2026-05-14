@@ -159,7 +159,6 @@ jobs:
           export PRODUCT_EDITION
           export PACKAGE_VERSION=${PRODUCT_VERSION}-${BUILD_NUMBER}
           export BUILD_CHANNEL
-          export DOCKERFILE=Dockerfile
           export PREFIX_NAME=4testing-
           export TAG=${PRODUCT_VERSION}.${BUILD_NUMBER}-${{ matrix.platform }}
 
