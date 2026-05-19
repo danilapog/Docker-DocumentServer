@@ -34,14 +34,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        images: ["documentserver-stable"]
         edition: ["", "-ee", "-de"]
     steps:
       - name: Checkout code 
         uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -54,7 +50,6 @@ jobs:
 
       - name: Build documentserver-release
         env:
-          TARGET: ${{ matrix.images }}
           PRODUCT_EDITION: ${{ matrix.edition }}
         run: |
             set -eux
