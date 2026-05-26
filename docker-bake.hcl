@@ -87,7 +87,7 @@ variable "UCS_PREFIX" {
 ### ↑ Variables for UCS build ↑
 
 target "documentserver" {
-    target = "documentserver"
+    target = PRODUCT_EDITION == "" ? "documentserver-community" : "documentserver-enterprise"
     dockerfile = "${DOCKERFILE}"
     tags = [
            "docker.io/${COMPANY_NAME}/${PREFIX_NAME}${PRODUCT_NAME}${PRODUCT_EDITION}:${TAG}"
@@ -120,7 +120,7 @@ target "documentserver-stable" {
 }
 
 target "documentserver-ucs" {
-    target = "documentserver"
+    target = PRODUCT_EDITION == "" ? "documentserver-community" : "documentserver-enterprise"
     dockerfile = "${DOCKERFILE}"
     tags = [
            "docker.io/${COMPANY_NAME}/${PRODUCT_NAME}${PRODUCT_EDITION}-ucs:${TAG}"

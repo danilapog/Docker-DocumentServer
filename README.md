@@ -75,16 +75,33 @@ All the data are stored in the specially-designated directories, **data volumes*
 * **/var/www/onlyoffice/Data** for certificates
 * **/var/lib/onlyoffice** for file cache
 * **/var/lib/postgresql** for database
+* **/var/lib/rabbitmq** for message broker
+* **/var/lib/redis** for cache
 
 To get access to your data from outside the container, you need to mount the volumes. It can be done by specifying the '-v' option in the docker run command.
 
+**Community Edition:**
+
+```bash
     sudo docker run -i -t -d -p 80:80 \
         -v /app/onlyoffice/DocumentServer/logs:/var/log/onlyoffice  \
         -v /app/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data  \
         -v /app/onlyoffice/DocumentServer/lib:/var/lib/onlyoffice \
+        onlyoffice/documentserver
+```
+
+**Enterprise/Developer Edition** — PostgreSQL, RabbitMQ and Redis are bundled in the image:
+
+```bash
+    sudo docker run -i -t -d -p 80:80 \
+        -v /app/onlyoffice/DocumentServer/logs:/var/log/onlyoffice \
+        -v /app/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data \
+        -v /app/onlyoffice/DocumentServer/lib:/var/lib/onlyoffice \
+        -v /app/onlyoffice/DocumentServer/db:/var/lib/postgresql \
         -v /app/onlyoffice/DocumentServer/rabbitmq:/var/lib/rabbitmq \
         -v /app/onlyoffice/DocumentServer/redis:/var/lib/redis \
-        -v /app/onlyoffice/DocumentServer/db:/var/lib/postgresql  onlyoffice/documentserver
+        onlyoffice/documentserver-ee  # or onlyoffice/documentserver-de for Developer Edition
+```
 
 Normally, you do not need to store container data because the container's operation does not depend on its state. Saving data will be useful:
 * For easy access to container data, such as logs
@@ -245,8 +262,22 @@ cd Docker-DocumentServer
 
 After that, assuming you have docker-compose installed, execute the following command:
 
+**Community Edition**:
+
 ```bash
 docker-compose up -d
+```
+
+**Enterprise Edition**:
+
+```bash
+docker compose -f docker-compose.enterprise.yml up -d
+```
+
+**Developer Edition**:
+
+```bash
+docker compose -f docker-compose.developer.yml up -d
 ```
 
 ## Installing ONLYOFFICE Document Server as a part of ONLYOFFICE Workspace
@@ -281,7 +312,6 @@ sudo docker run --net onlyoffice -i -t -d --restart=always --name onlyoffice-doc
  -v /app/onlyoffice/DocumentServer/logs:/var/log/onlyoffice  \
  -v /app/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data  \
  -v /app/onlyoffice/DocumentServer/lib:/var/lib/onlyoffice \
- -v /app/onlyoffice/DocumentServer/db:/var/lib/postgresql \
  onlyoffice/documentserver
 ```
 
