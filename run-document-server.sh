@@ -808,8 +808,8 @@ if [ ${ONLYOFFICE_DATA_CONTAINER} != "true" ]; then
     ( documentserver-pluginsmanager.sh -r false --update="${APP_DIR}/sdkjs-plugins/plugin-list-default.json" >/dev/null; echo "[pluginsmanager] Plugins initialization finished" >/proc/1/fd/1 ) &
   fi
 
-  ${ADMINPANEL_AVAILABLE} && [ "${ADMINPANEL_ENABLED:-false}" = "true" ] && sed -i 's,autostart=false,autostart=true,' ${SUPERVISOR_CONF_DIR}/ds-adminpanel.conf
-  [ "${EXAMPLE_ENABLED:-false}" = "true" ] && sed -i 's,autostart=false,autostart=true,' ${SUPERVISOR_CONF_DIR}/ds-example.conf
+  ${ADMINPANEL_AVAILABLE} && [ "${ADMINPANEL_ENABLED:-true}" = "false" ] && sed -i 's,\(autostart=\)true,\1false,' ${SUPERVISOR_CONF_DIR}/ds-adminpanel.conf
+  [ "${EXAMPLE_ENABLED:-false}" = "true" ] && sed -i 's,\(autostart=\)false,\1true,' ${SUPERVISOR_CONF_DIR}/ds-example.conf
   if ${ADMINPANEL_AVAILABLE}; then
     tail -n 0 -F "$DS_LOG_DIR/adminpanel/out.log" &
   fi
