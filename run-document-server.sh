@@ -589,8 +589,10 @@ create_oracle_tbl() {
 }
 
 update_welcome_page() {
+  INDEX_PAGE="${APP_DIR}-example/welcome/index.html"
   WELCOME_PAGE="${APP_DIR}-example/welcome/docker.html"
   EXAMPLE_DISABLED_PAGE="${APP_DIR}-example/welcome/example-disabled.html"
+  sed -Ei 's/(data-platform=")[^"]*/\1docker/' "$INDEX_PAGE"
   if ${ADMINPANEL_AVAILABLE}; then
     ADMIN_DISABLED_PAGE="${APP_DIR}-example/welcome/admin-disabled.html"
     sed -Ei 's#sudo systemctl start ds-(adminpanel|example)#sudo docker exec $(sudo docker ps -q) supervisorctl start ds:\1#g' "$ADMIN_DISABLED_PAGE" "$EXAMPLE_DISABLED_PAGE"
@@ -598,7 +600,7 @@ update_welcome_page() {
     sed -Ei 's#sudo systemctl start ds-example#sudo docker exec $(sudo docker ps -q) supervisorctl start ds:example#g' "$EXAMPLE_DISABLED_PAGE"
   fi
 
-  TARGET_PAGES="$WELCOME_PAGE $EXAMPLE_DISABLED_PAGE${ADMIN_DISABLED_PAGE:+ $ADMIN_DISABLED_PAGE}"
+  TARGET_PAGES="$INDEX_PAGE $WELCOME_PAGE $EXAMPLE_DISABLED_PAGE ${ADMIN_DISABLED_PAGE:+$ADMIN_DISABLED_PAGE}"
   if [[ -e $WELCOME_PAGE ]]; then
     DOCKER_CONTAINER_ID=$(basename $(cat /proc/1/cpuset))
     (( ${#DOCKER_CONTAINER_ID} < 12 )) && DOCKER_CONTAINER_ID=$(hostname)
@@ -665,9 +667,6 @@ update_nginx_settings(){
     sed '/listen\s\+\[::[0-9]*\].\+/d' -i $NGINX_ONLYOFFICE_CONF
   fi
 
-  if [ -f "${NGINX_ONLYOFFICE_EXAMPLE_CONF}" ]; then
-    sed 's/linux/docker/' -i ${NGINX_ONLYOFFICE_EXAMPLE_CONF}
-  fi
 
   start_process documentserver-update-securelink.sh -s ${SECURE_LINK_SECRET:-$(pwgen -s 20)} -r false
 }
