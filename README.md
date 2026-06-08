@@ -204,23 +204,6 @@ Below is the complete list of parameters that can be set using environment varia
 - **SSL_DHPARAM_PATH**: The path to the Diffie-Hellman parameter. Defaults to `/var/www/onlyoffice/Data/certs/dhparam.pem`.
 - **SSL_VERIFY_CLIENT**: Enable verification of client certificates using the `CA_CERTIFICATES_PATH` file. Defaults to `false`
 - **NODE_EXTRA_CA_CERTS**: The [NODE_EXTRA_CA_CERTS](https://nodejs.org/api/cli.html#node_extra_ca_certsfile "Node.js documentation") to extend CAs with the extra certificates for Node.js. Defaults to `/var/www/onlyoffice/Data/certs/extra-ca-certs.pem`.
-- **DB_TYPE**: The database type. Supported values are `postgres`, `mariadb`, `mysql`, `mssql` or `oracle`. Defaults to `postgres`.
-- **DB_HOST**: The IP address or the name of the host where the database server is running.
-- **DB_PORT**: The database server port number.
-- **DB_NAME**: The name of a database to use. Should be existing on container startup.
-- **DB_USER**: The new user name with superuser permissions for the database account.
-- **DB_PWD**: The password set for the database account.
-- **DB_SCHEMA**: Database schema name (optional).  
-  - **PostgreSQL** — schema for [search_path](https://www.postgresql.org/docs/current/ddl-schemas.html#DDL-SCHEMAS-PATH), default `public`.  
-  - **MSSQL** — schema to set as [DEFAULT_SCHEMA](https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-user-transact-sql?view=sql-server-ver17#default_schema---schema_name--null-), default `dbo`.  
-- **AMQP_URI**: The [AMQP URI](https://www.rabbitmq.com/uri-spec.html "RabbitMQ URI Specification") to connect to message broker server.
-- **AMQP_TYPE**: The message broker type. Supported values are `rabbitmq` or `activemq`. Defaults to `rabbitmq`.
-- **RABBIT_CONNECTIONS**: Sets the maximum number of simultaneous connections that can be opened to the RabbitMQ message broker. Defaults to the soft limit from `ulimit -n`.
-- **REDIS_SERVER_HOST**: The IP address or the name of the host where the Redis server is running.
-- **REDIS_SERVER_PORT**:  The Redis server port number.
-- **REDIS_SERVER_USER**: The Redis server username. The username is not set by default.
-- **REDIS_SERVER_PASS**: The Redis server password. The password is not set by default.
-- **REDIS_SERVER_DB**: The Redis database index number to select. Defaults to `0`.  
 - **NGINX_WORKER_PROCESSES**: Defines the number of nginx worker processes.
 - **NGINX_WORKER_CONNECTIONS**: Sets the maximum number of simultaneous connections that can be opened by a nginx worker process. Defaults to the soft limit from `ulimit -n`.
 - **NGINX_ACCESS_LOG**: Defines whether access logging is enabled. Defaults to `false`.
@@ -243,6 +226,28 @@ Below is the complete list of parameters that can be set using environment varia
 - **LETS_ENCRYPT_DOMAIN**: Defines the domain for Let's Encrypt certificate.
 - **LETS_ENCRYPT_MAIL**: Defines the domain administrator mail address for Let's Encrypt certificate.
 - **PLUGINS_ENABLED**: Defines whether to enable default plugins. Defaults to `true`.
+
+#### Enterprise and Developer Edition Parameters
+
+The following dependency parameters are supported only in Enterprise and Developer editions.
+
+- **DB_TYPE**: The database type. Supported values are `postgres`, `mariadb`, `mysql`, `mssql` or `oracle`. Defaults to `postgres`.
+- **DB_HOST**: The IP address or the name of the host where the database server is running.
+- **DB_PORT**: The database server port number.
+- **DB_NAME**: The name of a database to use. Should be existing on container startup.
+- **DB_USER**: The new user name with superuser permissions for the database account.
+- **DB_PWD**: The password set for the database account.
+- **DB_SCHEMA**: Database schema name (optional).
+  - **PostgreSQL** — schema for [search_path](https://www.postgresql.org/docs/current/ddl-schemas.html#DDL-SCHEMAS-PATH), default `public`.
+  - **MSSQL** — schema to set as [DEFAULT_SCHEMA](https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-user-transact-sql?view=sql-server-ver17#default_schema---schema_name--null-), default `dbo`.
+- **AMQP_URI**: The [AMQP URI](https://www.rabbitmq.com/uri-spec.html "RabbitMQ URI Specification") to connect to message broker server.
+- **AMQP_TYPE**: The message broker type. Supported values are `rabbitmq` or `activemq`. Defaults to `rabbitmq`.
+- **RABBIT_CONNECTIONS**: Sets the maximum number of simultaneous connections that can be opened to the RabbitMQ message broker. Defaults to the soft limit from `ulimit -n`.
+- **REDIS_SERVER_HOST**: The IP address or the name of the host where the Redis server is running.
+- **REDIS_SERVER_PORT**: The Redis server port number.
+- **REDIS_SERVER_USER**: The Redis server username. The username is not set by default.
+- **REDIS_SERVER_PASS**: The Redis server password. The password is not set by default.
+- **REDIS_SERVER_DB**: The Redis database index number to select. Defaults to `0`.
 
 ## Installing ONLYOFFICE Document Server using Docker Compose
 
