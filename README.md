@@ -217,7 +217,6 @@ Below is the complete list of parameters that can be set using environment varia
 - **ALLOW_PRIVATE_IP_ADDRESS**: Defines if it is allowed to connect private IP address or not. Defaults to `false`.
 - **USE_UNAUTHORIZED_STORAGE**: Set to `true` if using self-signed certificates for your storage server e.g. Nextcloud. Defaults to `false`
 - **GENERATE_FONTS**: When 'true' regenerates fonts list and the fonts thumbnails etc. at each start. Defaults to `true`
-- **ADMINPANEL_ENABLED**: Enables admin panel service autostart. Defaults to `false`.
 - **EXAMPLE_ENABLED**: Enables example service autostart. Defaults to `false`.
 - **METRICS_ENABLED**: Specifies the enabling StatsD for ONLYOFFICE Document Server. Defaults to `false`.
 - **METRICS_HOST**: Defines StatsD listening host. Defaults to `localhost`.
@@ -231,6 +230,7 @@ Below is the complete list of parameters that can be set using environment varia
 
 The following dependency parameters are supported only in Enterprise and Developer editions.
 
+- **ADMINPANEL_ENABLED**: Enables admin panel service autostart. Defaults to `true`.
 - **DB_TYPE**: The database type. Supported values are `postgres`, `mariadb`, `mysql`, `mssql` or `oracle`. Defaults to `postgres`.
 - **DB_HOST**: The IP address or the name of the host where the database server is running.
 - **DB_PORT**: The database server port number.
