@@ -137,12 +137,17 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME_ENTERPRISE }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN_ENTERPRISE }}
 
-      - name: release 4enterpise
-        shell: bash
-        run: |
-          export TAG=${VERSION%.*}.${RELEASE_NUMBER}
-          docker buildx imagetools create --tag onlyoffice4enterprise/documentserver-ee:${TAG} \
-                                                onlyoffice/4testing-documentserver-ee:${VERSION}
+      - name: Create release image tag
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 60
+          command: |
+              export TAG=${VERSION%.*}.${RELEASE_NUMBER}
+              docker buildx imagetools create \
+                            --tag onlyoffice4enterprise/documentserver-ee:${TAG} \
+                                  onlyoffice/4testing-documentserver-ee:${VERSION}
 
   build-nonexample:
     name: "Release image: DocumentServer${{ matrix.edition }}-nonExample"
