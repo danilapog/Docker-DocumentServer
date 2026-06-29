@@ -160,6 +160,22 @@ read_setting(){
   METRICS_HOST="${METRICS_HOST:-localhost}"
   METRICS_PORT="${METRICS_PORT:-8125}"
   METRICS_PREFIX="${METRICS_PREFIX:-.ds}"
+  MSSQL_TLS_PARAMS="-C"
+  case "${TLS_MODE,,}" in
+    ""|"disable")
+      TLS_REJECT_UNAUTHORIZED=false
+      ;;
+    "require")
+      TLS_REJECT_UNAUTHORIZED=false
+      ;;
+    "verify-ca"|"verify-full")
+      TLS_REJECT_UNAUTHORIZED=true
+      ;;
+    *)
+      echo "ERROR: unknown TLS mode '${TLS_MODE}'"
+      exit 1
+      ;;
+  esac
 
   if [ ${DB_AVAILABLE} = "true" ]; then
     deprecated_var POSTGRESQL_SERVER_HOST DB_HOST
@@ -196,6 +212,41 @@ read_setting(){
     DB_NAME=${DB_NAME:-${POSTGRESQL_SERVER_DB_NAME:-$(${JSON} services.CoAuthoring.sql.dbName)}}
     DB_USER=${DB_USER:-${POSTGRESQL_SERVER_USER:-$(${JSON} services.CoAuthoring.sql.dbUser)}}
     DB_PWD=${DB_PWD:-${DB_PASSWORD:-${POSTGRESQL_SERVER_PASS:-$(${JSON} services.CoAuthoring.sql.dbPass)}}}
+    if [ "${DB_TYPE}" = "postgres" ]; then
+      [ -n "${TLS_MODE}" ] && export PGSSLMODE="${TLS_MODE}"
+      [ -n "${TLS_CA_CERT}" ] && export PGSSLROOTCERT="${TLS_CA_CERT}"
+      [ -n "${TLS_CERT}" ] && export PGSSLCERT="${TLS_CERT}"
+      [ -n "${TLS_KEY}" ] && export PGSSLKEY="${TLS_KEY}"
+    fi
+    if [ "${DB_TYPE}" = "mariadb" ] || [ "${DB_TYPE}" = "mysql" ]; then
+      MYSQL_TLS_PARAMS=""
+      case "${TLS_MODE,,}" in
+        "")
+          ;;
+        "disable")
+          MYSQL_TLS_PARAMS="--ssl-mode=DISABLED"
+          ;;
+        "require")
+          MYSQL_TLS_PARAMS="--ssl-mode=REQUIRED"
+          ;;
+        "verify-ca")
+          MYSQL_TLS_PARAMS="--ssl-mode=VERIFY_CA"
+          ;;
+        "verify-full")
+          MYSQL_TLS_PARAMS="--ssl-mode=VERIFY_IDENTITY"
+          ;;
+      esac
+      [ -n "${TLS_CA_CERT}" ] && MYSQL_TLS_PARAMS="${MYSQL_TLS_PARAMS} --ssl-ca=${TLS_CA_CERT}"
+      [ -n "${TLS_CERT}" ] && MYSQL_TLS_PARAMS="${MYSQL_TLS_PARAMS} --ssl-cert=${TLS_CERT}"
+      [ -n "${TLS_KEY}" ] && MYSQL_TLS_PARAMS="${MYSQL_TLS_PARAMS} --ssl-key=${TLS_KEY}"
+    fi
+    if [ "${DB_TYPE}" = "mssql" ]; then
+      case "${TLS_MODE,,}" in
+        "verify-ca"|"verify-full")
+          MSSQL_TLS_PARAMS=""
+          ;;
+      esac
+    fi
   fi
 
   if [ ${RABBITMQ_AVAILABLE} = "true" ]; then
@@ -220,6 +271,31 @@ deprecated_var() {
   if [[ -n ${!1} ]]; then
     echo "Variable $1 is deprecated. Use $2 instead."
   fi
+}
+
+set_json_tls_file(){
+  if [ -n "$1" ]; then
+    if [ ! -r "$1" ]; then
+      echo "ERROR: $2 '$1' is not readable"
+      exit 1
+    fi
+    TLS_FILE_VALUE="$(cat "$1")" ${JSON} -I -e "$3"
+  fi
+}
+
+set_json_tls_files(){
+  set_json_tls_file "${TLS_CA_CERT}" "$1 TLS CA certificate file" "$2"
+  set_json_tls_file "${TLS_CERT}" "$1 TLS client certificate file" "$3"
+  set_json_tls_file "${TLS_KEY}" "$1 TLS client private key file" "$4"
+}
+
+set_json_tls_options(){
+  ${JSON} -I -e "$2 ||= {}"
+  ${JSON} -I -e "$2.rejectUnauthorized = ${TLS_REJECT_UNAUTHORIZED}"
+  set_json_tls_files "$1" \
+    "$2.ca = $3" \
+    "$2.cert = process.env.TLS_FILE_VALUE" \
+    "$2.key = process.env.TLS_FILE_VALUE"
 }
 
 parse_rabbitmq_url(){
@@ -324,12 +400,62 @@ update_db_settings(){
   ${JSON} -I -e "this.services.CoAuthoring.sql.dbName = '${DB_NAME}'"
   ${JSON} -I -e "this.services.CoAuthoring.sql.dbUser = '${DB_USER}'"
   ${JSON} -I -e "this.services.CoAuthoring.sql.dbPass = '${DB_PWD}'"
+
+  if [ -n "${TLS_MODE}" ]; then
+    case "${DB_TYPE}" in
+      "postgres")
+        SQL_TLS_OPTIONS="this.services.CoAuthoring.sql.pgPoolExtraOptions"
+        ;;
+      "mariadb"|"mysql")
+        SQL_TLS_OPTIONS="this.services.CoAuthoring.sql.mysqlExtraOptions"
+        ;;
+      "mssql")
+        ;;
+      *)
+        echo "ERROR: database TLS settings are not supported for '${DB_TYPE}'"
+        exit 1
+        ;;
+    esac
+
+    if [ "${TLS_MODE,,}" = "disable" ]; then
+      if [ "${DB_TYPE}" = "mssql" ]; then
+        ${JSON} -I -e "this.services.CoAuthoring.sql.msSqlExtraOptions ||= {}; this.services.CoAuthoring.sql.msSqlExtraOptions.options ||= {}; this.services.CoAuthoring.sql.msSqlExtraOptions.options.encrypt = false; this.services.CoAuthoring.sql.msSqlExtraOptions.options.trustServerCertificate = true; delete this.services.CoAuthoring.sql.msSqlExtraOptions.options.cryptoCredentialsDetails"
+      else
+        ${JSON} -I -e "if (${SQL_TLS_OPTIONS}) delete ${SQL_TLS_OPTIONS}.ssl"
+      fi
+    else
+      if [ "${DB_TYPE}" = "mssql" ]; then
+        ${JSON} -I -e "this.services.CoAuthoring.sql.msSqlExtraOptions ||= {}"
+        ${JSON} -I -e "this.services.CoAuthoring.sql.msSqlExtraOptions.options ||= {}"
+        ${JSON} -I -e "this.services.CoAuthoring.sql.msSqlExtraOptions.options.encrypt = true"
+        ${JSON} -I -e "this.services.CoAuthoring.sql.msSqlExtraOptions.options.trustServerCertificate = $([ "${TLS_REJECT_UNAUTHORIZED}" = "true" ] && echo false || echo true)"
+        set_json_tls_files "database" \
+          "this.services.CoAuthoring.sql.msSqlExtraOptions.options.cryptoCredentialsDetails ||= {}; this.services.CoAuthoring.sql.msSqlExtraOptions.options.cryptoCredentialsDetails.ca = process.env.TLS_FILE_VALUE" \
+          "this.services.CoAuthoring.sql.msSqlExtraOptions.options.cryptoCredentialsDetails ||= {}; this.services.CoAuthoring.sql.msSqlExtraOptions.options.cryptoCredentialsDetails.cert = process.env.TLS_FILE_VALUE" \
+          "this.services.CoAuthoring.sql.msSqlExtraOptions.options.cryptoCredentialsDetails ||= {}; this.services.CoAuthoring.sql.msSqlExtraOptions.options.cryptoCredentialsDetails.key = process.env.TLS_FILE_VALUE"
+      else
+        ${JSON} -I -e "${SQL_TLS_OPTIONS} ||= {}"
+        set_json_tls_options "database" "${SQL_TLS_OPTIONS}.ssl" "process.env.TLS_FILE_VALUE"
+      fi
+    fi
+  fi
 }
 
 update_rabbitmq_setting(){
   if [ "${AMQP_TYPE}" == "rabbitmq" ]; then
     ${JSON} -I -e "if(this.queue===undefined)this.queue={};"
     ${JSON} -I -e "this.queue.type = 'rabbitmq'"
+
+    if [ -n "${TLS_MODE}" ]; then
+      if [ "${TLS_MODE,,}" = "disable" ]; then
+        AMQP_URI=${AMQP_URI/amqps:\/\//amqp://}
+        ${JSON} -I -e "this.rabbitmq.socketOptions = {}"
+      else
+        AMQP_URI=${AMQP_URI/amqp:\/\//amqps://}
+        set_json_tls_options "AMQP" "this.rabbitmq.socketOptions" "[process.env.TLS_FILE_VALUE]"
+      fi
+    fi
+
     ${JSON} -I -e "this.rabbitmq.url = '${AMQP_URI}'"
   fi
   
@@ -359,14 +485,27 @@ update_rabbitmq_setting(){
       ${JSON} -I -e "delete this.activemq.connectOptions.password"
     fi
 
-    case "${AMQP_SERVER_PROTO}" in
-      amqp+ssl|amqps)
-        ${JSON} -I -e "this.activemq.connectOptions.transport = 'tls'"
-        ;;
-      *)
+    if [ -n "${TLS_MODE}" ]; then
+      if [ "${TLS_MODE,,}" = "disable" ]; then
         ${JSON} -I -e "delete this.activemq.connectOptions.transport"
-        ;;
-    esac 
+        ${JSON} -I -e "delete this.activemq.connectOptions.rejectUnauthorized"
+        ${JSON} -I -e "delete this.activemq.connectOptions.ca"
+        ${JSON} -I -e "delete this.activemq.connectOptions.cert"
+        ${JSON} -I -e "delete this.activemq.connectOptions.key"
+      else
+        ${JSON} -I -e "this.activemq.connectOptions.transport = 'tls'"
+        set_json_tls_options "AMQP" "this.activemq.connectOptions" "process.env.TLS_FILE_VALUE"
+      fi
+    else
+      case "${AMQP_SERVER_PROTO}" in
+        amqp+ssl|amqps)
+          ${JSON} -I -e "this.activemq.connectOptions.transport = 'tls'"
+          ;;
+        *)
+          ${JSON} -I -e "delete this.activemq.connectOptions.transport"
+          ;;
+      esac
+    fi
   fi
 }
 
@@ -380,6 +519,29 @@ update_redis_settings(){
     ${REDIS_SERVER_PASS:+password: '${REDIS_SERVER_PASS}',}
     ${REDIS_SERVER_DB:+database: '${REDIS_SERVER_DB}',}
   }"
+
+  if [ -n "${TLS_MODE}" ]; then
+    if [ "${TLS_MODE,,}" = "disable" ]; then
+      ${JSON} -I -e "if(this.services.CoAuthoring.redis.options) delete this.services.CoAuthoring.redis.options.socket"
+      ${JSON} -I -e "if(this.services.CoAuthoring.redis.iooptions) delete this.services.CoAuthoring.redis.iooptions.tls"
+      ${JSON} -I -e "if(this.services.CoAuthoring.redis.iooptionsClusterOptions) delete this.services.CoAuthoring.redis.iooptionsClusterOptions.tls"
+    else
+      ${JSON} -I -e "this.services.CoAuthoring.redis.options ||= {}"
+      ${JSON} -I -e "this.services.CoAuthoring.redis.options.socket ||= {}"
+      ${JSON} -I -e "this.services.CoAuthoring.redis.options.socket.tls = true"
+      ${JSON} -I -e "this.services.CoAuthoring.redis.options.socket.rejectUnauthorized = ${TLS_REJECT_UNAUTHORIZED}"
+      ${JSON} -I -e "this.services.CoAuthoring.redis.iooptions ||= {}"
+      ${JSON} -I -e "this.services.CoAuthoring.redis.iooptions.tls ||= {}"
+      ${JSON} -I -e "this.services.CoAuthoring.redis.iooptions.tls.rejectUnauthorized = ${TLS_REJECT_UNAUTHORIZED}"
+      ${JSON} -I -e "this.services.CoAuthoring.redis.iooptionsClusterOptions ||= {}"
+      ${JSON} -I -e "this.services.CoAuthoring.redis.iooptionsClusterOptions.tls ||= {}"
+      ${JSON} -I -e "this.services.CoAuthoring.redis.iooptionsClusterOptions.tls.rejectUnauthorized = ${TLS_REJECT_UNAUTHORIZED}"
+      set_json_tls_files "Redis" \
+        "this.services.CoAuthoring.redis.options.socket.ca = process.env.TLS_FILE_VALUE; this.services.CoAuthoring.redis.iooptions.tls.ca = process.env.TLS_FILE_VALUE; this.services.CoAuthoring.redis.iooptionsClusterOptions.tls.ca = process.env.TLS_FILE_VALUE" \
+        "this.services.CoAuthoring.redis.options.socket.cert = process.env.TLS_FILE_VALUE; this.services.CoAuthoring.redis.iooptions.tls.cert = process.env.TLS_FILE_VALUE; this.services.CoAuthoring.redis.iooptionsClusterOptions.tls.cert = process.env.TLS_FILE_VALUE" \
+        "this.services.CoAuthoring.redis.options.socket.key = process.env.TLS_FILE_VALUE; this.services.CoAuthoring.redis.iooptions.tls.key = process.env.TLS_FILE_VALUE; this.services.CoAuthoring.redis.iooptionsClusterOptions.tls.key = process.env.TLS_FILE_VALUE"
+    fi
+  fi
 }
 
 update_ds_settings(){
@@ -518,7 +680,7 @@ upgrade_postgresql_tbl() {
 }
 
 upgrade_mysql_tbl() {
-  CONNECTION_PARAMS="-h$DB_HOST -P$DB_PORT -u$DB_USER -p$DB_PWD -w"
+  CONNECTION_PARAMS="-h$DB_HOST -P$DB_PORT -u$DB_USER -p$DB_PWD -w ${MYSQL_TLS_PARAMS}"
   MYSQL="mysql -q $CONNECTION_PARAMS"
 
   $MYSQL $DB_NAME < "$APP_DIR/server/schema/mysql/removetbl.sql" >/dev/null 2>&1
@@ -530,7 +692,7 @@ upgrade_mssql_tbl() {
     export SQLCMDPASSWORD=$DB_PWD
   fi
 
-  MSSQL="/opt/mssql-tools18/bin/sqlcmd -S $DB_HOST,$DB_PORT -d $DB_NAME -U $DB_USER -C"
+  MSSQL="/opt/mssql-tools18/bin/sqlcmd -S $DB_HOST,$DB_PORT -d $DB_NAME -U $DB_USER ${MSSQL_TLS_PARAMS}"
 
   mssql_check_schema
   $MSSQL < "$APP_DIR/server/schema/mssql/removetbl.sql" >/dev/null 2>&1
@@ -563,7 +725,7 @@ create_postgresql_tbl() {
 }
 
 create_mysql_tbl() {
-  CONNECTION_PARAMS="-h$DB_HOST -P$DB_PORT -u$DB_USER -p$DB_PWD -w"
+  CONNECTION_PARAMS="-h$DB_HOST -P$DB_PORT -u$DB_USER -p$DB_PWD -w ${MYSQL_TLS_PARAMS}"
   MYSQL="mysql -q $CONNECTION_PARAMS"
 
   # Create db on remote server
@@ -577,7 +739,7 @@ create_mssql_tbl() {
     export SQLCMDPASSWORD=$DB_PWD
   fi
 
-  MSSQL="/opt/mssql-tools18/bin/sqlcmd -S $DB_HOST,$DB_PORT -d $DB_NAME -U $DB_USER -C"
+  MSSQL="/opt/mssql-tools18/bin/sqlcmd -S $DB_HOST,$DB_PORT -d $DB_NAME -U $DB_USER ${MSSQL_TLS_PARAMS}"
 
   create_mssql_db
   mssql_check_schema
