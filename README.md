@@ -484,6 +484,13 @@ docker buildx imagetools inspect docker.io/onlyoffice/documentserver:latest \
   --format '{{ json (index .Provenance "linux/amd64").SLSA }}'
 ```
 
+And for `linux/arm64` run:
+
+```bash
+docker buildx imagetools inspect docker.io/onlyoffice/documentserver:latest \
+  --format '{{ json (index .Provenance "linux/arm64").SLSA }}'
+```
+
 ## Project Information
 
 Official website: [www.onlyoffice.com](https://www.onlyoffice.com/?utm_source=github&utm_medium=cpc&utm_campaign=GitHubDockerDS)
