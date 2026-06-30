@@ -435,7 +435,7 @@ docker login
 GitHub attestation cryptographically binds the image to the workflow run that produced it. To verify:
 
 ```bash
-gh attestation verify oci://docker.io/onlyoffice/documentserver:9.4.0-1 \
+gh attestation verify oci://docker.io/onlyoffice/documentserver:latest \
   -R onlyoffice/Docker-DocumentServer
 ```
 
@@ -447,14 +447,14 @@ Each image ships with an SBOM (Software Bill of Materials) attached as an in-tot
 
 ```bash
 # View SBOM for a multi-arch image (specify platform)
-docker buildx imagetools inspect docker.io/onlyoffice/documentserver:9.4.0-1 \
+docker buildx imagetools inspect docker.io/onlyoffice/documentserver:latest \
   --format '{{ json (index .SBOM "linux/amd64").SPDX }}'
 ```
 
 To save the SBOM to a file for further analysis with tools like `grype` or `trivy`:
 
 ```bash
-docker buildx imagetools inspect docker.io/onlyoffice/documentserver:9.4.0-1 \
+docker buildx imagetools inspect docker.io/onlyoffice/documentserver:latest \
   --format '{{ json (index .SBOM "linux/amd64").SPDX }}' > sbom.spdx.json
 ```
 
@@ -463,7 +463,7 @@ docker buildx imagetools inspect docker.io/onlyoffice/documentserver:9.4.0-1 \
 The image also includes SLSA build provenance metadata describing how it was built:
 
 ```bash
-docker buildx imagetools inspect docker.io/onlyoffice/documentserver:9.4.0-1 \
+docker buildx imagetools inspect docker.io/onlyoffice/documentserver:latest \
   --format '{{ json (index .Provenance "linux/amd64").SLSA }}'
 ```
 
