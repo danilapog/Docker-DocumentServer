@@ -446,16 +446,33 @@ A successful verification confirms that the image was built by the official `onl
 Each image ships with an SBOM (Software Bill of Materials) attached as an in-toto attestation. You can extract and inspect it using `docker buildx imagetools`:
 
 ```bash
-# View SBOM for a multi-arch image (specify platform)
+# View SBOM for a multi-arch image by the linux/amd64 platform
 docker buildx imagetools inspect docker.io/onlyoffice/documentserver:latest \
   --format '{{ json (index .SBOM "linux/amd64").SPDX }}'
+```
+
+To view on the `linux/arm64` platform, run:
+
+```bash
+# View SBOM for a multi-arch image by the linux/arm64 platform
+docker buildx imagetools inspect docker.io/onlyoffice/documentserver:latest \
+  --format '{{ json (index .SBOM "linux/arm64").SPDX }}'
 ```
 
 To save the SBOM to a file for further analysis with tools like `grype` or `trivy`:
 
 ```bash
+# Run to get for the platform linux/amd64
 docker buildx imagetools inspect docker.io/onlyoffice/documentserver:latest \
   --format '{{ json (index .SBOM "linux/amd64").SPDX }}' > sbom.spdx.json
+```
+
+And for `linux/arm64` platform:
+
+```bash
+# Run to get for the platform linux/arm64
+docker buildx imagetools inspect docker.io/onlyoffice/documentserver:latest \
+  --format '{{ json (index .SBOM "linux/arm64").SPDX }}' > sbom.spdx.json
 ```
 
 #### Inspect embedded build provenance
