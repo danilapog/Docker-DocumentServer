@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 ssl=${ssl:-false}
 private_key=${private_key:-tls.key}
 certificate_request=${certificate_request:-tls.csr}
@@ -33,22 +35,30 @@ if [[ ! -f $config ]]; then
   exit 1
 fi
 
-# Run test environment
-docker-compose -p ds -f $config up -d
+trap 'docker compose -p ds -f $config down' EXIT
 
-wakeup_timeout=90
+# Run test environment
+docker compose -p ds -f $config up -d
+
+wakeup_timeout=300
 
 # Get documentserver healthcheck status
 echo "Wait for service wake up"
-sleep $wakeup_timeout
-healthcheck_res=$(wget --no-check-certificate -qO - ${url}/healthcheck)
+for (( elapsed=0; elapsed<=wakeup_timeout; elapsed+=10 )); do
+  if healthcheck_res=$(wget --no-check-certificate -qO - ${url}/healthcheck); then
+    if [[ $healthcheck_res == "true" ]]; then
+      break
+    fi
+  fi
+
+  sleep 10
+done
 
 # Fail if it isn't true
 if [[ $healthcheck_res == "true" ]]; then
   echo "Healthcheck passed."
 else
   echo "Healthcheck failed!"
+  docker compose -p ds -f $config logs --no-color
   exit 1
 fi
-
-docker-compose -p ds -f $config down

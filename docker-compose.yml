@@ -5,8 +5,8 @@ services:
       target: documentserver-community
     image: onlyoffice/documentserver
     container_name: onlyoffice-documentserver
-    environment:
-      # Uncomment strings below to enable the JSON Web Token validation.
+    # Uncomment the environment section below to enable JSON Web Token validation.
+    #environment:
       #- JWT_ENABLED=true
       #- JWT_SECRET=secret
       #- JWT_HEADER=Authorization
