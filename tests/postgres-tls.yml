@@ -1,0 +1,43 @@
+services:
+  onlyoffice-documentserver:
+    container_name: onlyoffice-documentserver
+    build:
+      context: ../.
+      target: documentserver-enterprise
+      args:
+        - PRODUCT_EDITION=-ee
+    depends_on:
+      - onlyoffice-postgresql
+    environment:
+      - DB_TYPE=postgres
+      - DB_HOST=onlyoffice-postgresql
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-onlyoffice}
+      - DB_USER=${DB_USER:-onlyoffice}
+      - DB_PWD=${DB_PWD:-onlyoffice}
+      - TLS_MODE=${TLS_MODE:-verify-full}
+      - TLS_CA_CERT=${TLS_CA_CERT:-/var/www/onlyoffice/Data/tls/ca.crt}
+    stdin_open: true
+    restart: always
+    ports:
+      - '80:80'
+    volumes:
+      - ./data:/var/www/onlyoffice/Data
+
+  onlyoffice-postgresql:
+    container_name: onlyoffice-postgresql
+    image: postgres:${POSTGRES_VERSION:-16}
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-onlyoffice}
+      - POSTGRES_USER=${POSTGRES_USER:-onlyoffice}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-onlyoffice}
+    restart: always
+    expose:
+      - '5432'
+    volumes:
+      - ./data/tls:/tls:ro
+      - ./data/tls/postgresql-init-tls.sh:/docker-entrypoint-initdb.d/postgresql-init-tls.sh:ro
+      - postgresql_data:/var/lib/postgresql/data
+
+volumes:
+  postgresql_data:

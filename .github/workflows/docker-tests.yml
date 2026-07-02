@@ -105,6 +105,13 @@ jobs:
               POSTGRES_DB=mydb
               POSTGRES_USER=myuser
 
+          - name: PostgreSQL TLS
+            working_directory: tests
+            script: ./test.sh
+            config: postgres-tls.yml
+            variables: |
+              tls_services=postgresql
+
           - name: PostgreSQL deprecated variables
             working_directory: tests
             script: ./test.sh
@@ -117,6 +124,20 @@ jobs:
             config: mysql.yml
             variables: |
               MYSQL_VERSION=8
+
+          - name: MySQL TLS
+            working_directory: tests
+            script: ./test.sh
+            config: mysql-tls.yml
+            variables: |
+              tls_services=mysql
+
+          - name: MSSQL TLS
+            working_directory: tests
+            script: ./test.sh
+            config: mssql-tls.yml
+            variables: |
+              tls_services=mssql
 
           - name: MySQL 5
             working_directory: tests
@@ -170,6 +191,13 @@ jobs:
             variables: |
               RABBITMQ_VERSION=3
 
+          - name: RabbitMQ TLS
+            working_directory: tests
+            script: ./test.sh
+            config: rabbitmq-tls.yml
+            variables: |
+              tls_services=postgresql rabbitmq
+
           - name: RabbitMQ deprecated variables
             working_directory: tests
             script: ./test.sh
@@ -181,6 +209,13 @@ jobs:
             script: ./test.sh
             config: redis.yml
             variables: ""
+
+          - name: Redis TLS
+            working_directory: tests
+            script: ./test.sh
+            config: redis-tls.yml
+            variables: |
+              tls_services=postgresql redis
 
           - name: Redis 6
             working_directory: tests
