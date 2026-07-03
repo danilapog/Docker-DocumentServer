@@ -327,10 +327,6 @@ parse_rabbitmq_url(){
     host=$hostport
     port="5672"
   fi
-
-  # extract the path (if any)
-  local path="$(echo $url | grep / | cut -d/ -f2-)"
-
   AMQP_SERVER_PROTO=${proto:0:-3}
   AMQP_SERVER_HOST=$host
   AMQP_SERVER_USER=$user
