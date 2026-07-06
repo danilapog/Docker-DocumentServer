@@ -46,7 +46,6 @@ RUN echo "#!/bin/sh\nexit 101" > /usr/sbin/policy-rc.d && \
         libnss3 \
         libstdc++6 \
         libxml2 \
-        libxss1 \
         libxtst6 \
         nano \
         net-tools \
@@ -57,7 +56,6 @@ RUN echo "#!/bin/sh\nexit 101" > /usr/sbin/policy-rc.d && \
         supervisor \
         ttf-mscorefonts-installer \
         unzip \
-        xvfb \
         xxd \
         zlib1g && \
     if [  $(find /usr/share/fonts/truetype/msttcorefonts -maxdepth 1 -type f -iname '*.ttf' | wc -l) -lt 30 ]; \
