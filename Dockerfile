@@ -37,27 +37,20 @@ RUN echo "#!/bin/sh\nexit 101" > /usr/sbin/policy-rc.d && \
         cron \
         curl \
         htop \
-        libasound2${PACKAGE_SUFFIX} \
-        libcairo2 \
-        libcurl3-gnutls \
-        libcurl4 \
-        libgtk-3-0 \
         libnspr4 \
         libnss3 \
         libstdc++6 \
         libxml2 \
-        libxtst6 \
         nano \
         net-tools \
         netcat-openbsd \
-        nginx-extras \
+        nginx \
         pwgen \
         sudo \
         supervisor \
         ttf-mscorefonts-installer \
         unzip \
-        xxd \
-        zlib1g && \
+        xxd && \
     if [  $(find /usr/share/fonts/truetype/msttcorefonts -maxdepth 1 -type f -iname '*.ttf' | wc -l) -lt 30 ]; \
         then echo 'msttcorefonts failed to download'; exit 1; fi  && \
     rm -rf /var/lib/apt/lists/*
