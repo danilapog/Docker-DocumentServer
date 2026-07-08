@@ -43,4 +43,9 @@ RUN PACKAGE_FILE="${COMPANY_NAME}-${PRODUCT_NAME}${PRODUCT_EDITION}${PACKAGE_VER
 
 EXPOSE 80 443
 VOLUME /var/log/$COMPANY_NAME /var/lib/$COMPANY_NAME /var/www/$COMPANY_NAME/Data /usr/share/fonts/truetype/custom
+
+# In data-container mode docservice never starts, so only check that nginx responds.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+    CMD if [ "$ONLYOFFICE_DATA_CONTAINER" != "true" ]; then [ "$(curl -fs http://127.0.0.1/healthcheck)" = "true" ]; else curl -fso /dev/null http://127.0.0.1/; fi
+
 ENTRYPOINT ["/app/ds/run-document-server.sh"]
