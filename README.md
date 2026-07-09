@@ -333,7 +333,7 @@ The known Docker issue with ONLYOFFICE Document Server with rpm-based distributi
 Due to the operational characteristic, **Document Server** saves a document only after the document has been closed by all the users who edited it. To avoid data loss, you must forcefully disconnect the **Document Server** users when you need to stop **Document Server** in cases of the application update, server reboot etc. To do that, execute the following script on the server where **Document Server** is installed:
 
 ```
-sudo docker exec <CONTAINER> documentserver-prepare4shutdown.sh
+sudo docker exec <CONTAINER> documentserver-prepare4shutdown
 ```
 
 Please note, that both executing the script and disconnecting users may take a long time (up to 5 minutes).

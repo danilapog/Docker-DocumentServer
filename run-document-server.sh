@@ -44,7 +44,7 @@ init_config(){
   # JWT and WOPI/security settings.
   JWT_ENABLED=${JWT_ENABLED:-true}
   JWT_ENABLED="$([[ "${JWT_ENABLED}" == "true" ]] && echo "true" || echo "false")"
-  [[ "${JWT_ENABLED}" == "true" && -z "${JWT_SECRET}" ]] && JWT_MESSAGE='JWT is enabled by default. A random secret is generated automatically. Run the command "docker exec $(sudo docker ps -q) sudo documentserver-jwt-status.sh" to get information about JWT.'
+  [[ "${JWT_ENABLED}" == "true" && -z "${JWT_SECRET}" ]] && JWT_MESSAGE='JWT is enabled by default. A random secret is generated automatically. Run the command "docker exec $(sudo docker ps -q) sudo documentserver-jwt-status" to get information about JWT.'
 
   JWT_SECRET=${JWT_SECRET:-$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32)}
   JWT_HEADER=${JWT_HEADER:-Authorization}
@@ -155,7 +155,7 @@ start_process() {
 clean_exit() {
   [[ -z "$CHILD" ]] || kill -s SIGTERM "$CHILD" 2>/dev/null
   if [ "${ONLYOFFICE_DATA_CONTAINER}" == "false" ] && [ "${ONLYOFFICE_DATA_CONTAINER_HOST}" == "localhost" ]; then
-    /usr/bin/documentserver-prepare4shutdown.sh
+    /usr/bin/documentserver-prepare4shutdown
   fi
   exit
 }
@@ -656,7 +656,7 @@ update_nginx_settings(){
 
   [ ! -f /proc/net/if_inet6 ] && sed -i '/listen\s\+\[::[0-9]*\].\+/d' "${NGINX_ONLYOFFICE_CONF}"
 
-  start_process documentserver-update-securelink.sh \
+  start_process documentserver-update-securelink \
     -s "${SECURE_LINK_SECRET:-$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 20)}" -r false
 }
 
@@ -757,7 +757,7 @@ for SVC in "${LOCAL_SERVICES[@]}"; do service "$SVC" start; done
 # Full startup: only runs in non-data-container mode.
 if [ "${ONLYOFFICE_DATA_CONTAINER}" != "true" ]; then
   # Start plugin manager in background before waiting for services.
-  [ "${PLUGINS_ENABLED}" = "true" ] && { documentserver-pluginsmanager.sh -r false --update="${APP_DIR}/sdkjs-plugins/plugin-list-default.json" >/dev/null & PLUGINSMANAGER_PID=$!; }
+  [ "${PLUGINS_ENABLED}" = "true" ] && { documentserver-pluginsmanager -r false --update="${APP_DIR}/sdkjs-plugins/plugin-list-default.json" >/dev/null & PLUGINSMANAGER_PID=$!; }
 
   # Wait for external services to become ready.
   [ "${DB_AVAILABLE}" = "true" ]       && { waiting_for_db; [ "${IS_UPGRADE}" = "true" ] && run_db_tbl upgrade; }
@@ -777,19 +777,19 @@ if [ "${ONLYOFFICE_DATA_CONTAINER}" != "true" ]; then
 fi
 
 # nginx runs in all modes: as a proxy and as a data-container health endpoint.
-start_process documentserver-flush-cache.sh -r false
+start_process documentserver-flush-cache -r false
 service nginx start
 
 # Obtain or renew Let's Encrypt certificate if domain is configured.
 if [[ -n "${LETS_ENCRYPT_DOMAIN}" && -n "${LETS_ENCRYPT_MAIL}" ]]; then
   if [[ ! -f "${SSL_CERTIFICATE_PATH}" && ! -f "${SSL_KEY_PATH}" ]]; then
-    start_process documentserver-letsencrypt.sh "${LETS_ENCRYPT_MAIL}" "${LETS_ENCRYPT_DOMAIN}"
+    start_process documentserver-letsencrypt "${LETS_ENCRYPT_MAIL}" "${LETS_ENCRYPT_DOMAIN}"
   fi
 fi
 
 # Background tasks: font generation, static gzip, log tailing.
-[ "${GENERATE_FONTS}" == "true" ] && start_process documentserver-generate-allfonts.sh "${ONLYOFFICE_DATA_CONTAINER}"
-start_process documentserver-static-gzip.sh "${ONLYOFFICE_DATA_CONTAINER}"
+[ "${GENERATE_FONTS}" == "true" ] && start_process documentserver-generate-allfonts "${ONLYOFFICE_DATA_CONTAINER}"
+start_process documentserver-static-gzip "${ONLYOFFICE_DATA_CONTAINER}"
 
 echo "${JWT_MESSAGE}"
 
