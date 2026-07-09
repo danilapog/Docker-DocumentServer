@@ -3,7 +3,7 @@ services:
     container_name: onlyoffice-documentserver
     build:
       context: ../../.
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.enterprise
     depends_on:
       - onlyoffice-oracle
     environment:
