@@ -1,10 +1,7 @@
 # syntax=docker/dockerfile:1
-ARG BASE_VERSION=24.04
-ARG BASE_IMAGE=ubuntu:${BASE_VERSION}
-FROM $BASE_IMAGE
+FROM ubuntu:24.04
 LABEL maintainer="Ascensio System SIA <support@onlyoffice.com>"
 
-ARG BASE_VERSION
 ARG PG_VERSION=16
 ENV LC_ALL=en_US.UTF-8 LANGUAGE=en_US:en DEBIAN_FRONTEND=noninteractive PG_VERSION=$PG_VERSION
 
@@ -16,7 +13,7 @@ RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d && \
 
 # Install bundled database engines and clients: PostgreSQL, Redis, RabbitMQ, MySQL, MSSQL, Oracle.
 RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --batch --yes --dearmor -o /usr/share/keyrings/microsoft-prod.gpg && \
-    curl -fsSLo /etc/apt/sources.list.d/mssql-release.list "https://packages.microsoft.com/config/ubuntu/${BASE_VERSION}/prod.list" && \
+    curl -fsSLo /etc/apt/sources.list.d/mssql-release.list "https://packages.microsoft.com/config/ubuntu/24.04/prod.list" && \
     sed -Ei 's/ ?signed-by=[^]]*//; s#^deb \[([^]]*)\]#deb [\1 signed-by=/usr/share/keyrings/microsoft-prod.gpg]#' /etc/apt/sources.list.d/mssql-release.list && \
     apt-get -y update && ACCEPT_EULA=Y apt-get -yq install --no-install-recommends \
         $(: databases)          postgresql redis-server rabbitmq-server \
@@ -74,15 +71,13 @@ RUN PACKAGE_FILE="${COMPANY_NAME}-${PRODUCT_NAME}${PRODUCT_EDITION}${PACKAGE_VER
     curl -fsSL https://download.onlyoffice.com/GPG-KEY-ONLYOFFICE | gpg --batch --yes --dearmor -o /usr/share/keyrings/onlyoffice.gpg && \
     echo "deb [signed-by=/usr/share/keyrings/onlyoffice.gpg] https://download.onlyoffice.com/repo/debian squeeze main" > /etc/apt/sources.list.d/onlyoffice.list && \
     echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections && \
-    curl -fsSL https://nginx.org/keys/nginx_signing.key | gpg --batch --yes --dearmor -o /usr/share/keyrings/nginx.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/nginx.gpg] https://nginx.org/packages/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) nginx" > /etc/apt/sources.list.d/nginx.list && \
     apt-get -y update && \
     pg_ctlcluster $PG_VERSION main start && \
     sudo -u postgres psql \
         -c "CREATE USER $ONLYOFFICE_VALUE WITH password '$ONLYOFFICE_VALUE';" \
         -c "CREATE DATABASE $ONLYOFFICE_VALUE OWNER $ONLYOFFICE_VALUE;" && \
-    apt-get -yq install --no-install-recommends nginx /tmp/$PACKAGE_FILE && \
-    rm -f /etc/nginx/conf.d/default.conf && \
+    apt-get -yq install --no-install-recommends /tmp/$PACKAGE_FILE && \
+    rm -f /etc/nginx/sites-enabled/default && \
     sudo -u postgres psql \
         -c "DROP DATABASE $ONLYOFFICE_VALUE;" \
         -c "DROP ROLE $ONLYOFFICE_VALUE;" && \
