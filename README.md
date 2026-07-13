@@ -231,7 +231,7 @@ Below is the complete list of parameters that can be set using environment varia
 The following dependency parameters are supported only in Enterprise and Developer editions.
 
 - **ADMINPANEL_ENABLED**: Enables admin panel service autostart. Defaults to `true`.
-- **DB_TYPE**: The database type. Supported values are `postgres`, `mariadb`, `mysql`, `mssql` or `oracle`. Defaults to `postgres`.
+- **DB_TYPE**: The database type. Supported values are `postgres`, `mariadb`, `mysql`, `dameng`, `mssql` or `oracle`. Defaults to `postgres`.
 - **DB_HOST**: The IP address or the name of the host where the database server is running.
 - **DB_PORT**: The database server port number.
 - **DB_NAME**: The name of a database to use. Should be existing on container startup.
