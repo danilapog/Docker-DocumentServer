@@ -31,9 +31,9 @@ on:
 env:
   COMPANY_NAME: "onlyoffice"
   PRODUCT_NAME: "documentserver"
-  VERSION: ${{ github.event.inputs.tag }}
-  RELEASE_NUMBER: ${{ github.event.inputs.release_number }}
-  LATEST: ${{ github.event.inputs.latest }}
+  VERSION: ${{ inputs.tag }}
+  RELEASE_NUMBER: ${{ inputs.release_number }}
+  LATEST: ${{ inputs.latest }}
 
 jobs:
   setup:
@@ -46,17 +46,27 @@ jobs:
         id: set
         shell: bash
         env:
-          INPUT_C: ${{ github.event.inputs.community }}
-          INPUT_E: ${{ github.event.inputs.enterprise }}
+          INPUT_C: ${{ inputs.community }}
+          INPUT_E: ${{ inputs.enterprise }}
         run: |
-          set -eux
-          editions=$(jq -nc \
-            --argjson c "$INPUT_C" \
-            --argjson e "$INPUT_E" \
-            '[ if $c then "" else empty end,
-               if $e then ("-ee", "-de") else empty end ]')
-          echo "editions=$editions" >> "$GITHUB_OUTPUT"
-          echo "Matrix editions: $editions"
+          set -euo pipefail
+
+          editions="$(jq -nc \
+            --argjson community "${INPUT_C}" \
+            --argjson enterprise "${INPUT_E}" \
+            '[
+              if $community then "" else empty end,
+              if $enterprise then "-ee", "-de" else empty end
+            ]'
+          )"
+
+          if [ "$(jq 'length' <<< "${editions}")" -eq 0 ]; then
+            echo "At least one edition must be selected" >&2
+            exit 1
+          fi
+
+          echo "editions=${editions}" >> "${GITHUB_OUTPUT}"
+          echo "Matrix editions: ${editions}"
 
   build:
     name: "Release image: DocumentServer${{ matrix.edition }}"
