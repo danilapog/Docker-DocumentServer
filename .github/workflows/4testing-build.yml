@@ -367,40 +367,49 @@ jobs:
            REPO="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${PRODUCT_EDITION}"
            echo "name=$REPO" >> "$GITHUB_OUTPUT"
            echo "index_digest=$INDEX_DIGEST" >> "$GITHUB_OUTPUT"
+           echo "from_tags=${FROM_TAGS[*]}" >> "$GITHUB_OUTPUT"
 
-           ### ==>> Cleanup platform-specific tags ###
+      - name: Cleanup platform-specific tags
+        if: always() && steps.manifest.outputs.index_digest != ''
+        env:
+          REPO: ${{ steps.manifest.outputs.name }}
+          FROM_TAGS_STR: ${{ steps.manifest.outputs.from_tags }}
+          DOCKER_PAT_USERNAME: ${{ secrets.DOCKERHUB_USERNAME_PAT }}
+          DOCKER_PAT_ACCESS_TOKEN: ${{ secrets.DOCKERHUB_TOKEN_PAT }}
+        run: |
+          set -u
+          read -ra FROM_TAGS <<< "${FROM_TAGS_STR}"
 
-           REPO="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${PRODUCT_EDITION}"
+          if [ ${#FROM_TAGS[@]} -eq 0 ]; then
+            echo "No platform-specific tags to clean up."
+            exit 0
+          fi
 
-           echo "Getting Docker Hub token..."
-           TOKEN=$(curl -s -X POST "https://hub.docker.com/v2/users/login" \
+          echo "Getting Docker Hub token..."
+          TOKEN=$(curl -s -X POST "https://hub.docker.com/v2/users/login" \
             -H "Content-Type: application/json" \
             -d "{\"username\": \"${DOCKER_PAT_USERNAME}\", \"password\": \"${DOCKER_PAT_ACCESS_TOKEN}\"}" \
             | jq -r .token)
 
-           if [ -z "${TOKEN}" ] || [ "${TOKEN}" = "null" ]; then
-             echo "ERROR: Failed to get Docker Hub token"
-             exit 1
-           fi
-           echo "Docker Hub token obtained successfully"
+          if [ -z "${TOKEN}" ] || [ "${TOKEN}" = "null" ]; then
+            echo "ERROR: Failed to get Docker Hub token"
+            exit 1
+          fi
 
-           for IMG in "${FROM_TAGS[@]}"; do
-             PLATFORM_TAG="${IMG##*:}"
-             echo "Deleting tag: ${IMG}"
-
-             HTTP_STATUS=$(curl -s -o /tmp/delete_response.json -w "%{http_code}" -X DELETE \
-               -H "Authorization: JWT ${TOKEN}" \
-               "https://hub.docker.com/v2/repositories/${REPO}/tags/${PLATFORM_TAG}/")
-
-             echo "Response HTTP status: ${HTTP_STATUS}"
-             echo "Response body: $(cat /tmp/delete_response.json)"
-
-             if [ "${HTTP_STATUS}" = "204" ]; then
-               echo "Successfully deleted: ${IMG}"
-             else
-               echo "WARNING: Unexpected status ${HTTP_STATUS} when deleting ${IMG}"
-             fi
-           done
+          for IMG in "${FROM_TAGS[@]}"; do
+            PLATFORM_TAG="${IMG##*:}"
+            echo "Deleting tag: ${IMG}"
+            HTTP_STATUS=$(curl -s -o /tmp/delete_response.json -w "%{http_code}" -X DELETE \
+              -H "Authorization: JWT ${TOKEN}" \
+              "https://hub.docker.com/v2/repositories/${REPO}/tags/${PLATFORM_TAG}/")
+            echo "Response HTTP status: ${HTTP_STATUS}"
+            if [ "${HTTP_STATUS}" = "204" ]; then
+              echo "Successfully deleted: ${IMG}"
+            else
+              echo "WARNING: Unexpected status ${HTTP_STATUS} when deleting ${IMG}"
+            fi
+          done
+        shell: bash
 
       - name: Attest build provenance for multi-arch index
         uses: actions/attest@v4
