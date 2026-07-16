@@ -351,8 +351,6 @@ jobs:
 
            FINAL_TAG="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${PRODUCT_EDITION}:${TAG}"
            
-           FINAL_TAG="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${PRODUCT_EDITION}:${TAG}"
-
            INDEX_DIGEST=""
            for i in $(seq 1 6); do
                 INDEX_DIGEST=$(docker buildx imagetools inspect "$FINAL_TAG" --format '{{ .Manifest.Digest }}' 2>/dev/null || true)
