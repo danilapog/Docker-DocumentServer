@@ -211,7 +211,7 @@ jobs:
       - name: Initialize submodules
         working-directory: dep-tests
         env:
-          GITHUB_TOKEN: ${{ secrets.MY_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.TOKEN_GH }}
         run: |
           set -euo pipefail
 
