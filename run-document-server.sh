@@ -135,10 +135,7 @@ init_folders(){
   mkdir -p "${DS_LOG_DIR}-example" && touch "${DS_LOG_DIR}-example"/{out,err}.log
   mkdir -p "${DS_LIB_DIR}/App_Data/cache/files" "${DS_LIB_DIR}/App_Data/docbuilder" "${DS_LIB_DIR}-example/files"
 
-  chown ds:ds "${DATA_DIR}"
-  chown -R ds:ds "${DS_LOG_DIR}" "${DS_LOG_DIR}-example" "${LIB_DIR}"
   chmod -R 755 "${DS_LOG_DIR}" "${DS_LOG_DIR}-example" "${LIB_DIR}"
-  find "/etc/${COMPANY_NAME}" ! -path '*logrotate*' -exec chown ds:ds {} +
 
   # Bug 75324: runtime.json may be owned by root after volume mount
   local ai_config="${DATA_DIR}/runtime.json"
@@ -753,6 +750,10 @@ for SVC in "${LOCAL_SERVICES[@]}"; do service "$SVC" start; done
 
 # Create PostgreSQL database and schema if this is a new or missing database.
 [ "${DB_AVAILABLE}" = "true" ] && init_postgresql_db
+
+chown ds:ds "${DATA_DIR}"
+chown -R ds:ds "${DS_LOG_DIR}" "${DS_LOG_DIR}-example" "${LIB_DIR}"
+find "/etc/${COMPANY_NAME}" ! -path '*logrotate*' -exec chown ds:ds {} +
 
 # Full startup: only runs in non-data-container mode.
 if [ "${ONLYOFFICE_DATA_CONTAINER}" != "true" ]; then
