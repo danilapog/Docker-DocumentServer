@@ -72,12 +72,6 @@ jobs:
       - name: Checkout code 
         uses: actions/checkout@v7
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-     
       - name: Login to Docker Hub
         uses: docker/login-action@v4
         with:
@@ -86,19 +80,23 @@ jobs:
 
       - name: Build documentserver-release
         env:
-          TARGET: ${{ matrix.images }}
           PRODUCT_EDITION: ${{ matrix.edition }}
         run: |
-          set -eux
-          TESTING_IMAGE=${COMPANY_NAME}/4testing-${PRODUCT_NAME}${PRODUCT_EDITION}
-            export PRODUCT_EDITION
-            export PULL_TAG=${VERSION}
+            set -eux
+            export SOURCE_IMAGE=${COMPANY_NAME}/4testing-${PRODUCT_NAME}${PRODUCT_EDITION}:${VERSION}
+            export RELEASE_IMAGE=${COMPANY_NAME}/${PRODUCT_NAME}${PRODUCT_EDITION}
             export TAG=${VERSION%.*}.${RELEASE_NUMBER}
             export SHORTER_TAG=${VERSION%.*}
             export SHORTEST_TAG=${VERSION%.*.*}
-            docker buildx bake --sbom=true --provenance=mode=max -f docker-bake.hcl "${TARGET}" --push
-            echo "DONE: Build success >> exit with 0"
-            exit 0
+            PUSH_TAGS=(
+               -t "${RELEASE_IMAGE}:${TAG}"
+               -t "${RELEASE_IMAGE}:${SHORTER_TAG}"
+               -t "${RELEASE_IMAGE}:${SHORTEST_TAG}"
+            )
+            if [ "${LATEST}" = "true" ]; then
+              PUSH_TAGS+=( "-t" "$RELEASE_IMAGE:latest" )
+            fi
+            docker buildx imagetools create "${PUSH_TAGS[@]}" "${SOURCE_IMAGE}"
         shell: bash
 
      # Disable for now
@@ -120,12 +118,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
 
       - name: Login to Docker Hub
         uses: docker/login-action@v4
