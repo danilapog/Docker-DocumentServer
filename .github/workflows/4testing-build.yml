@@ -350,7 +350,21 @@ jobs:
            docker buildx imagetools create "${PUSH_TAGS[@]}" "${FROM_TAGS[@]}"
 
            FINAL_TAG="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${PRODUCT_EDITION}:${TAG}"
-           INDEX_DIGEST=$(docker buildx imagetools inspect "$FINAL_TAG" --format '{{ .Manifest.Digest }}')
+           
+           FINAL_TAG="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${PRODUCT_EDITION}:${TAG}"
+
+           INDEX_DIGEST=""
+           for i in $(seq 1 6); do
+                INDEX_DIGEST=$(docker buildx imagetools inspect "$FINAL_TAG" --format '{{ .Manifest.Digest }}' 2>/dev/null || true)
+                [ -n "${INDEX_DIGEST}" ] && [ "${INDEX_DIGEST}" != "null" ] && break
+                echo "Digest not available yet, retrying in 10s... (attempt $i)"
+                sleep 10
+           done
+
+           if [ -z "${INDEX_DIGEST}" ] || [ "${INDEX_DIGEST}" = "null" ]; then
+                echo "ERROR: Failed to resolve index digest after retries"
+                exit 1
+           fi
 
            REPO="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${PRODUCT_EDITION}"
            echo "name=$REPO" >> "$GITHUB_OUTPUT"
