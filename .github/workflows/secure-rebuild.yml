@@ -180,6 +180,61 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Checkout tests
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+          TEST_TAG: ${{ matrix.test_tag }}
+        run: |
+          set -euo pipefail
+
+          git clone \
+            "https://${GITEA_TOKEN}@git.onlyoffice.com/ONLYOFFICE-QA/Dep.Tests.git" \
+            dep-tests
+
+          cd dep-tests
+
+          if git checkout "refs/tags/${TEST_TAG}" 2>/dev/null; then
+            echo "Checked out test tag ${TEST_TAG}"
+          else
+            echo "Test tag ${TEST_TAG} was not found" >&2
+            echo "Using fallback commit aa2d423f18" >&2
+            git checkout aa2d423f18
+          fi
+
+          df -h
+
+      - name: Initialize submodules
+        working-directory: dep-tests
+        env:
+          GITHUB_TOKEN: ${{ secrets.MY_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          git config --global \
+            url."https://${GITHUB_TOKEN}@github.com/".insteadOf \
+            "https://github.com/"
+
+          git submodule update \
+            --init
+
+      - name: Install dependencies
+        working-directory: dep-tests/puppeteer/engine
+        run: |
+          df -h
+          npm install --silent --no-progress > /dev/null 2>&1 || {
+            echo "Dependency installation failed"
+            exit 1
+          }
+
+      - name: mv Dep.Tests under context
+        run: |
+          mv dep-tests ../
+          
       - name: Build secure-patched image
         id: build
         env:
@@ -189,7 +244,7 @@ jobs:
           set -euo pipefail
 
           SOURCE_IMAGE="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${EDITION}:${SOURCE_TAG}"
-          PATCHED_IMAGE="${COMPANY_NAME}/4testing-secure-${PRODUCT_NAME}${EDITION}:${SOURCE_TAG}-secure"
+          PATCHED_IMAGE="${COMPANY_NAME}/secure-4testing-${PRODUCT_NAME}${EDITION}:${SOURCE_TAG}-secure"
 
           echo "Source image: ${SOURCE_IMAGE}"
           echo "Patched image: ${PATCHED_IMAGE}"
@@ -204,9 +259,20 @@ jobs:
             --push \
             .
 
-          docker buildx imagetools inspect "${PATCHED_IMAGE}"
-
           echo "patched_image=${PATCHED_IMAGE}" >> "${GITHUB_OUTPUT}"
+
+      - name: Return dep.tests
+        run: |
+          mv ../dep-tests ./
+          
+      - name: Clean-up
+        run: |
+          set -euo pipefail
+
+          docker rm --force documentserver 2>/dev/null || true
+          docker buildx prune -af 
+          docker image prune -af
+          docker builder prune -af
 
       - name: Pull test image
         env:
@@ -234,9 +300,7 @@ jobs:
           IMAGE: ${{ steps.build.outputs.patched_image }}
         run: |
           set -euo pipefail
-
-          docker rm --force documentserver 2>/dev/null || true
-
+          
           docker run \
             --detach \
             --publish 80:80 \
@@ -301,62 +365,6 @@ jobs:
             sleep 5
           done
 
-      - name: Checkout tests
-        env:
-          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
-          TEST_TAG: ${{ matrix.test_tag }}
-        run: |
-          set -euo pipefail
-
-          git clone \
-            "https://${GITEA_TOKEN}@git.onlyoffice.com/ONLYOFFICE-QA/Dep.Tests.git" \
-            dep-tests
-
-          cd dep-tests
-
-          if git checkout "refs/tags/${TEST_TAG}" 2>/dev/null; then
-            echo "Checked out test tag ${TEST_TAG}"
-          else
-            echo "Test tag ${TEST_TAG} was not found" >&2
-            echo "Using fallback commit aa2d423f18" >&2
-            git checkout aa2d423f18
-          fi
-
-      - name: Initialize submodules
-        working-directory: dep-tests
-        env:
-          GITHUB_TOKEN: ${{ secrets.MY_TOKEN }}
-        run: |
-          set -euo pipefail
-
-          git config --global \
-            url."https://${GITHUB_TOKEN}@github.com/".insteadOf \
-            "https://github.com/"
-
-          git submodule update \
-            --init \
-            --recursive
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        working-directory: dep-tests/puppeteer/engine
-        run: |
-          set -euo pipefail
-
-          if [ -f package-lock.json ]; then
-            npm ci \
-              --no-audit \
-              --no-fund
-          else
-            npm install \
-              --no-audit \
-              --no-fund
-          fi
-
       - name: Start Xvfb
         run: |
           set -euo pipefail
@@ -365,7 +373,8 @@ jobs:
             -screen 0 1920x1080x24 \
             >"${RUNNER_TEMP}/xvfb.log" \
             2>&1 &
-
+          
+          sleep 60
           echo "DISPLAY=:99" >> "${GITHUB_ENV}"
 
       - name: Install Chrome
@@ -373,49 +382,53 @@ jobs:
         with:
           chrome-version: "120"
 
-      - name: Execute smoke tests
-        working-directory: dep-tests/puppeteer/engine
-        run: |
-          set -uo pipefail
-
-          OUTPUT_FILE="../test-output.log"
-          RESULT=0
-
-          : > "${OUTPUT_FILE}"
-
-          tests=(
-            "tests/desktop/word/smoke/open-close-file-tab.js"
-            "tests/desktop/word/smoke/check_search_while_drawing.js"
-            "tests/desktop/spreadsheets/smoke/check_replace_all.js"
-            "tests/desktop/spreadsheets/smoke/data_entry_use_tab_button.js"
-            "tests/desktop/pdf/smoke/check_find_for_a_specific_pdf.js"
-            "tests/desktop/pdf/smoke/check_undo_after_add_text_comment.js"
-          )
-
-          for test in "${tests[@]}"; do
-            echo "Running ${test}" \
-              | tee -a "${OUTPUT_FILE}"
-
-            python3 run.py \
-              --config config_chrome_linux.json \
-              "${test}" \
-              --config_params \
-                "runOptions.disableAnimation=true" \
-                "testOptions.url=http://localhost/example" \
-                'puppeteerOptions.browserArgs.args=["--no-sandbox","--disable-setuid-sandbox"]' \
-              2>&1 \
-              | tee -a "${OUTPUT_FILE}"
-
-            TEST_RESULT="${PIPESTATUS[0]}"
-
-            if [ "${TEST_RESULT}" -ne 0 ]; then
-              echo "Test failed with exit code ${TEST_RESULT}: ${test}" \
-                | tee -a "${OUTPUT_FILE}"
-              RESULT=1
-            fi
-          done
-
-          exit "${RESULT}"
+      - name: Run tests with retryes
+        uses: nick-fields/retry@v4
+        with:
+          timeout_minutes: 20
+          max_attempts: 3
+          retry_wait_seconds: 120
+          command: |
+              set -uo pipefail
+              cd dep-tests/puppeteer/engine
+              OUTPUT_FILE="../test-output.log"
+              RESULT=0
+    
+              : > "${OUTPUT_FILE}"
+    
+              tests=(
+                "tests/desktop/word/smoke/open-close-file-tab.js"
+                "tests/desktop/word/smoke/check_search_while_drawing.js"
+                "tests/desktop/spreadsheets/smoke/check_replace_all.js"
+                "tests/desktop/spreadsheets/smoke/data_entry_use_tab_button.js"
+                "tests/desktop/pdf/smoke/check_find_for_a_specific_pdf.js"
+                "tests/desktop/pdf/smoke/check_undo_after_add_text_comment.js"
+              )
+    
+              for test in "${tests[@]}"; do
+                echo "Running ${test}" \
+                  | tee -a "${OUTPUT_FILE}"
+    
+                python3 run.py \
+                  --config config_chrome_linux.json \
+                  "${test}" \
+                  --config_params \
+                    "runOptions.disableAnimation=true" \
+                    "testOptions.url=http://localhost/example" \
+                    'puppeteerOptions.browserArgs.args=["--no-sandbox","--disable-setuid-sandbox"]' \
+                  2>&1 \
+                  | tee -a "${OUTPUT_FILE}"
+    
+                TEST_RESULT="${PIPESTATUS[0]}"
+    
+                if [ "${TEST_RESULT}" -ne 0 ]; then
+                  echo "Test failed with exit code ${TEST_RESULT}: ${test}" \
+                    | tee -a "${OUTPUT_FILE}"
+                  RESULT=1
+                fi
+              done
+    
+              exit "${RESULT}"
 
       - name: Print test output
         if: always()
@@ -484,12 +497,15 @@ jobs:
       matrix: ${{ fromJSON(needs.prepare.outputs.retag_matrix) }}
 
     steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
       - name: Login to Docker Hub
         uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-      
+
       - name: Create multi-arch manifest with release tags
         uses: nick-fields/retry@v4
         env:
@@ -500,30 +516,30 @@ jobs:
           EDITION: ${{ matrix.edition }}
           PRODUCT_NAME: ${{ env.PRODUCT_NAME }}
         with:
-          timeout_minutes: 10
+          timeout_minutes: 20
           max_attempts: 3
           retry_wait_seconds: 60
           command: |
             set -euo pipefail
-
+  
             RELEASE_IMAGE="${COMPANY_NAME}/${PRODUCT_NAME}${EDITION}"
-            SRC_IMAGE="${COMPANY_NAME}/4testing-secure-${PRODUCT_NAME}${EDITION}:${SOURCE_TAG}-secure"
-
+            SRC_IMAGE="${COMPANY_NAME}/secure-4testing-${PRODUCT_NAME}${EDITION}:${SOURCE_TAG}-secure"
+  
             echo "Source image: ${SRC_IMAGE}"
             echo "Release image: ${RELEASE_IMAGE}"
             echo "Release tag: ${RELEASE_TAG}"
             echo "Short tags: ${SHORT_TAGS}"
             echo "Latest: ${IS_LATEST}"
-
+  
             docker buildx imagetools inspect "${SRC_IMAGE}"
-
+  
             PUSH_TAGS=(
               --tag "${RELEASE_IMAGE}:${RELEASE_TAG}"
             )
-
+  
             if [ -n "${SHORT_TAGS}" ]; then
               IFS=',' read -r -a SHORTS <<< "${SHORT_TAGS}"
-
+  
               for tag in "${SHORTS[@]}"; do
                 if [ -n "${tag}" ]; then
                   PUSH_TAGS+=(
@@ -532,16 +548,16 @@ jobs:
                 fi
               done
             fi
-
+  
             if [ "${IS_LATEST}" = "true" ]; then
               PUSH_TAGS+=(
                 --tag "${RELEASE_IMAGE}:latest"
               )
             fi
-
+  
             docker buildx imagetools create \
               "${PUSH_TAGS[@]}" \
               "${SRC_IMAGE}"
-
+  
             docker buildx imagetools inspect \
               "${RELEASE_IMAGE}:${RELEASE_TAG}"
