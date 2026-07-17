@@ -208,7 +208,7 @@ read_setting(){
     DB_NAME=${DB_NAME:-${POSTGRESQL_SERVER_DB_NAME:-$(${JSON} services.CoAuthoring.sql.dbName)}}
     DB_USER=${DB_USER:-${POSTGRESQL_SERVER_USER:-$(${JSON} services.CoAuthoring.sql.dbUser)}}
     DB_PWD=${DB_PWD:-${DB_PASSWORD:-${POSTGRESQL_SERVER_PASS:-$(${JSON} services.CoAuthoring.sql.dbPass)}}}
-    if [ "${DB_TYPE}" = "postgres" ]; then
+    if [ "${DB_TYPE}" = "postgres" ] && [ "${DB_HOST}" != "localhost" ]; then
       [ -n "${TLS_MODE}" ] && export PGSSLMODE="${TLS_MODE}"
       [ -n "${TLS_CA_CERT}" ] && export PGSSLROOTCERT="${TLS_CA_CERT}"
       [ -n "${TLS_CERT}" ] && export PGSSLCERT="${TLS_CERT}"
