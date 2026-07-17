@@ -217,6 +217,13 @@ jobs:
             variables: |
               tls_services=postgresql redis
 
+          - name: Redis TLS with local PostgreSQL
+            working_directory: tests
+            script: ./test.sh
+            config: redis-tls-local-db.yml
+            variables: |
+              tls_services=redis
+
           - name: Redis 6
             working_directory: tests
             script: ./test.sh
