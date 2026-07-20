@@ -67,7 +67,7 @@
         ],
         "editions": {
           "": {
-            "latest": false
+            "latest": true
           },
           "-ee": {
             "latest": false
