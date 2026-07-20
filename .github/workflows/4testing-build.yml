@@ -195,6 +195,27 @@ jobs:
                  -f version="${VERSION}"
         shell: bash
 
+      # Run Trivy scans for community and developer images from release/hotfix branches.
+      - name: Trigger Trivy scan
+        if: >-
+             (matrix.edition == 'community' || matrix.edition == 'developer') &&
+             matrix.platform == 'amd64' &&
+             (startsWith(steps.build-ds.outputs.branch, 'release/') ||
+              startsWith(steps.build-ds.outputs.branch, 'hotfix/'))
+        env:
+          VERSION: ${{ steps.build-ds.outputs.version }}
+          EDITION: ${{ matrix.edition }}
+          BRANCH: ${{ steps.build-ds.outputs.branch }}
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+            gh workflow run trivy-ds.yml \
+                 --repo "${REPO}" \
+                 --ref "${BRANCH}" \
+                 -f edition="${EDITION}" \
+                 -f version="${VERSION}"
+        shell: bash
+
       - name: Save build result to file
         if: always()
         run: |

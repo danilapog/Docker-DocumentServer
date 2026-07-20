@@ -1,0 +1,60 @@
+---
+name: Scan DocumentServer with Trivy
+
+run-name: >-
+  Trivy scan for ${{ github.event.inputs.edition }} DocumentServer image version: ${{ github.event.inputs.version }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'DocumentServer image version to scan'
+        type: string
+        required: true
+      edition:
+        description: 'DocumentServer edition to scan'
+        type: choice
+        options:
+          - community
+          - developer
+        required: true
+
+env:
+  TAG: ${{ github.event.inputs.version }}
+  EDITION_SUFFIX: ${{ github.event.inputs.edition == 'developer' && '-de' || '' }}
+
+jobs:
+  trivy:
+    name: Scan DocumentServer image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create directory for scan results
+        run: mkdir -p trivy-results
+
+      - name: Scan image vulnerabilities
+        # Check CVEs.
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: onlyoffice/4testing-documentserver${{ env.EDITION_SUFFIX }}:${{ env.TAG }}
+          format: table
+          output: trivy-results/vulnerabilities.txt
+          scanners: vuln
+          exit-code: '0'
+
+      - name: Scan image secrets
+        # Check keys, tokens, and passwords.
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: onlyoffice/4testing-documentserver${{ env.EDITION_SUFFIX }}:${{ env.TAG }}
+          format: table
+          output: trivy-results/secrets.txt
+          scanners: secret
+          exit-code: '0'
+
+      - name: Upload Trivy scan results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: trivy-results-${{ github.event.inputs.edition }}-${{ env.TAG }}
+          path: trivy-results
+          if-no-files-found: warn
