@@ -50,6 +50,9 @@
         "release_tag": "9.4.0.1",
         "short_tags": [],
         "editions": {
+	  "": {
+            "latest": true
+          },
           "-ee": {
             "latest": false
           },
@@ -67,7 +70,7 @@
         ],
         "editions": {
           "": {
-            "latest": true
+            "latest": false
           },
           "-ee": {
             "latest": false
