@@ -246,7 +246,7 @@ jobs:
           set -euo pipefail
 
           SOURCE_IMAGE="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${EDITION}:${SOURCE_TAG}"
-          PATCHED_IMAGE="${COMPANY_NAME}/secure-4testing-${PRODUCT_NAME}${EDITION}:${SOURCE_TAG}-secure"
+          PATCHED_IMAGE="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${EDITION}:${SOURCE_TAG}-secure"
 
           echo "Source image: ${SOURCE_IMAGE}"
           echo "Patched image: ${PATCHED_IMAGE}"
@@ -525,7 +525,7 @@ jobs:
             set -euo pipefail
   
             RELEASE_IMAGE="${COMPANY_NAME}/${PRODUCT_NAME}${EDITION}"
-            SRC_IMAGE="${COMPANY_NAME}/secure-4testing-${PRODUCT_NAME}${EDITION}:${SOURCE_TAG}-secure"
+            SRC_IMAGE="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${EDITION}:${SOURCE_TAG}-secure"
   
             echo "Source image: ${SRC_IMAGE}"
             echo "Release image: ${RELEASE_IMAGE}"
