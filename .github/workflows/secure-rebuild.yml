@@ -222,6 +222,8 @@ jobs:
           git submodule update \
             --init
 
+          git config --global --unset url."https://${GITHUB_TOKEN}@github.com/".insteadOf
+
       - name: Install dependencies
         working-directory: dep-tests/puppeteer/engine
         run: |
