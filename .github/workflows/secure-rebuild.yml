@@ -7,7 +7,7 @@ run-name: >-
 
 on:
   schedule:
-    - cron: '0 9 1,15 * *'
+    - cron: '0 9 * * 1'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -486,11 +486,7 @@ jobs:
       - prepare
       - rebuild
 
-    if: >-
-      ${{
-        github.event_name != 'workflow_dispatch'
-        || !inputs.dry_run
-      }}
+    if: ${{ !inputs.dry_run }}
 
     runs-on: ubuntu-latest
 
