@@ -3,32 +3,39 @@ services:
     container_name: onlyoffice-documentserver
     build:
       context: ../.
+      dockerfile: Dockerfile.enterprise
     depends_on:
       - onlyoffice-postgresql
     environment:
-      - DB_TYPE=${DB_TYPE:-postgres}
-      - DB_HOST=${DB_HOST:-onlyoffice-postgresql}
-      - DB_PORT=${DB_PORT:-5432}
+      - DB_TYPE=postgres
+      - DB_HOST=onlyoffice-postgresql
+      - DB_PORT=5432
       - DB_NAME=${DB_NAME:-onlyoffice}
       - DB_USER=${DB_USER:-onlyoffice}
       - DB_PWD=${DB_PWD:-onlyoffice}
+      - TLS_MODE=${TLS_MODE:-verify-full}
+      - TLS_CA_CERT=${TLS_CA_CERT:-/var/www/onlyoffice/Data/tls/ca.crt}
     stdin_open: true
     restart: always
     ports:
       - '80:80'
+    volumes:
+      - ./data:/var/www/onlyoffice/Data
 
   onlyoffice-postgresql:
     container_name: onlyoffice-postgresql
-    image: postgres:${POSTGRES_VERSION:-12}
+    image: postgres:${POSTGRES_VERSION:-16}
     environment:
       - POSTGRES_DB=${POSTGRES_DB:-onlyoffice}
       - POSTGRES_USER=${POSTGRES_USER:-onlyoffice}
-      - POSTGRES_HOST_AUTH_METHOD=${POSTGRES_HOST_AUTH_METHOD:-trust}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-onlyoffice}
     restart: always
     expose:
       - '5432'
     volumes:
-      - postgresql_data:/var/lib/postgresql
+      - ./data/tls:/tls:ro
+      - ./data/tls/postgresql-init-tls.sh:/docker-entrypoint-initdb.d/postgresql-init-tls.sh:ro
+      - postgresql_data:/var/lib/postgresql/data
 
 volumes:
   postgresql_data:

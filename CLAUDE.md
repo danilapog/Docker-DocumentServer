@@ -11,12 +11,14 @@ Docker, Docker BuildX, Bash, Nginx, Supervisor, PostgreSQL/MySQL/MariaDB/MSSQL/O
 ```
 Dockerfile              — Main image (Ubuntu 24.04 base)
 production.dockerfile   — Stable/release image builder
-docker-compose.yml      — Local dev (documentserver + postgres + rabbitmq)
+docker-compose.yml          — Local dev CE (documentserver only, no bundled services)
+docker-compose.enterprise.yml — Local dev EE (with postgres, rabbitmq, redis)
+docker-compose.developer.yml  — Local dev DE (with postgres, rabbitmq, redis)
 docker-bake.hcl         — BuildX multi-platform config
 Makefile                — Build system (image, deploy, clean targets)
-run-document-server.sh  — Main entrypoint script (842 lines)
-config/supervisor/ds/        — Supervisor service configs (ds, ds-adminpanel, ds-converter, ds-docservice, ds-example, ds-metrics)
-config/supervisor/supervisor — Shell script for supervisord startup
+run-document-server.sh       — Entrypoint: initialization sequence and startup
+config/supervisor/           — Supervisor service configs (ds-converter, ds-docservice, ds-example, ds-metrics, ds-adminpanel)
+config/supervisor/ds.conf.enterprise — Group config with adminpanel included (EE/DE only)
 tests/                  — Integration tests (DB/AMQP/SSL matrix)
 fonts/                  — Custom fonts directory
 oracle/                 — Oracle SQLPlus wrapper
@@ -34,8 +36,11 @@ docker build -t onlyoffice/documentserver .
 # Run
 docker run -i -t -d -p 80:80 onlyoffice/documentserver
 
-# Docker Compose (with postgres + rabbitmq)
+# Docker Compose Community Edition
 docker-compose up -d
+
+# Docker Compose Enterprise Edition
+docker compose -f docker-compose.enterprise.yml up -d
 
 # Run tests
 cd tests && ./test.sh
