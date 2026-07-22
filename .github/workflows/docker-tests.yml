@@ -31,6 +31,18 @@ jobs:
             config: docker-compose.developer.yml
             variables: ""
 
+          - name: Community Edition (Standalone)
+            working_directory: tests
+            script: ./test.sh
+            config: standalone.yml
+            variables: ""
+
+          - name: Enterprise Edition (Standalone)
+            working_directory: tests
+            script: ./test.sh
+            config: standalone-enterprise.yml
+            variables: ""
+
           - name: Certificates with generated certificate
             working_directory: tests
             script: ./test.sh
