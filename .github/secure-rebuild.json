@@ -50,9 +50,6 @@
         "release_tag": "9.4.0.1",
         "short_tags": [],
         "editions": {
-	  "": {
-            "latest": true
-          },
           "-ee": {
             "latest": false
           },
@@ -69,9 +66,6 @@
           "9.3"
         ],
         "editions": {
-          "": {
-            "latest": false
-          },
           "-ee": {
             "latest": false
           },
@@ -85,9 +79,6 @@
         "release_tag": "9.3.1.1",
         "short_tags": [],
         "editions": {
-          "": {
-            "latest": false
-          },
           "-ee": {
             "latest": false
           },
@@ -103,9 +94,6 @@
           "9.3.0"
         ],
         "editions": {
-          "": {
-            "latest": false
-          },
           "-ee": {
             "latest": false
           },
@@ -122,9 +110,6 @@
           "9.2"
         ],
         "editions": {
-          "": {
-            "latest": false
-          },
           "-ee": {
             "latest": false
           },
@@ -140,9 +125,6 @@
           "9.2.0"
         ],
         "editions": {
-          "": {
-            "latest": false
-          },
           "-ee": {
             "latest": false
           },
@@ -159,9 +141,6 @@
           "9.1"
         ],
         "editions": {
-          "": {
-            "latest": false
-          },
           "-ee": {
             "latest": false
           },
@@ -178,9 +157,6 @@
           "9.0"
         ],
         "editions": {
-          "": {
-            "latest": false
-          },
           "-ee": {
             "latest": false
           },

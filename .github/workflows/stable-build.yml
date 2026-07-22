@@ -210,8 +210,8 @@ jobs:
           echo "release_tag=${BASE}.${RELEASE_NUMBER}" >> "${GITHUB_OUTPUT}"
 
       - name: Update JSON
+        id: update_json
         env:
-          COMMUNITY: ${{ inputs.community }}
           ENTERPRISE: ${{ inputs.enterprise }}
           LATEST: ${{ inputs.latest }}
           SOURCE_TAG: ${{ steps.release.outputs.source_tag }}
@@ -221,35 +221,26 @@ jobs:
           set -euo pipefail
 
           EDITIONS_JSON="$(jq -cn \
-            --argjson community "${COMMUNITY}" \
             --argjson enterprise "${ENTERPRISE}" \
             --argjson latest "${LATEST}" \
             '{
               editions: (
-                {}
-                + (
-                    if $community
-                    then {"": {latest: $latest}}
-                    else {}
-                    end
-                  )
-                + (
-                    if $enterprise
-                    then {
-                      "-ee": {latest: $latest},
-                      "-de": {latest: $latest}
-                    }
-                    else {}
-                    end
-                  )
+                if $enterprise
+                then {
+                  "-ee": {latest: $latest},
+                  "-de": {latest: $latest}
+                }
+                else {}
+                end
               )
             }
             | .editions'
           )"
 
           if [ "$(jq 'length' <<< "${EDITIONS_JSON}")" -eq 0 ]; then
-            echo "No editions were selected" >&2
-            exit 1
+            echo "No enterprise editions were selected, skipping config update"
+            echo "changed=false" >> "${GITHUB_OUTPUT}"
+            exit 0
           fi
 
           chmod +x .github/scripts/update-secure-rebuild-config.sh
@@ -260,7 +251,10 @@ jobs:
             "${RELEASE_NUMBER}" \
             "${EDITIONS_JSON}"
 
+          echo "changed=true" >> "${GITHUB_OUTPUT}"
+
       - name: Push branch and open PR in Gitea
+        if: ${{ steps.update_json.outputs.changed == 'true' }}
         env:
           GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
           GITEA_URL: ${{ secrets.GITEA_URL }}
