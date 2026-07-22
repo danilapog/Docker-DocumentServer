@@ -681,12 +681,19 @@ setup_rabbitmq(){
   fi
 }
 
-# Set up Redis: configure remote or initialize local instance.
+# Set up Redis: configure remote, or generate a password and initialize local instance.
 setup_redis(){
   if [ "${REDIS_SERVER_HOST}" != "localhost" ]; then
     update_redis_settings
   else
-    chown -R redis:redis "${REDIS_DATA}"; chmod -R 750 "${REDIS_DATA}"
+    local redis_pass_file="${REDIS_DATA}/.redis_pass"
+    REDIS_SERVER_PASS=${REDIS_SERVER_PASS:-$(cat "${redis_pass_file}" 2>/dev/null)}
+    REDIS_SERVER_PASS=${REDIS_SERVER_PASS:-$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 16)}
+    printf '%s' "${REDIS_SERVER_PASS}" > "${redis_pass_file}"
+    sed -i '/^[[:space:]]*#\?[[:space:]]*requirepass\b/d; /^[[:space:]]*#\?[[:space:]]*protected-mode\b/d' /etc/redis/redis.conf
+    printf 'requirepass %s\nprotected-mode yes\n' "${REDIS_SERVER_PASS}" >> /etc/redis/redis.conf
+    update_redis_settings
+    chown -R redis:redis "${REDIS_DATA}"; chmod -R 750 "${REDIS_DATA}"; chmod 600 "${redis_pass_file}"
     LOCAL_SERVICES+=("redis-server")
   fi
 }
