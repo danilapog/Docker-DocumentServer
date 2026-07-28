@@ -418,7 +418,7 @@ update_redis_settings(){
     }"
 
   if [ -n "${TLS_MODE}" ]; then
-    if [ "${TLS_MODE,,}" = "disable" ]; then
+    if [ "${REDIS_SERVER_HOST}" = "localhost" ] || [ "${TLS_MODE,,}" = "disable" ]; then
       ${JSON} -I -e "if(this.services.CoAuthoring.redis.options) delete this.services.CoAuthoring.redis.options.socket; \
         if(this.services.CoAuthoring.redis.iooptions) delete this.services.CoAuthoring.redis.iooptions.tls; \
         if(this.services.CoAuthoring.redis.iooptionsClusterOptions) delete this.services.CoAuthoring.redis.iooptionsClusterOptions.tls"
