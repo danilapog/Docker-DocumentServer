@@ -106,6 +106,11 @@ jobs:
             if [ "${LATEST}" = "true" ]; then
               PUSH_TAGS+=( "-t" "$RELEASE_IMAGE:latest" )
             fi
+
+            # Save base images for use them on rebuild
+            if [ "${PRODUCT_EDITION}" == "-de" ] || [ "${PRODUCT_EDITION}" == "-ee" ]; then
+                PUSH_TAGS+=( "-t" "${COMPANY_NAME}/base-${PRODUCT_NAME}${PRODUCT_EDITION}:${VERSION}" )
+            fi
             docker buildx imagetools create "${PUSH_TAGS[@]}" "${SOURCE_IMAGE}"
         shell: bash
 
