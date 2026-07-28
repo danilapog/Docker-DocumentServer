@@ -3,6 +3,7 @@ services:
     container_name: ds
     build:
       context: ../.
+      dockerfile: Dockerfile.enterprise
     depends_on:
       - onlyoffice-mariadb
     environment:
