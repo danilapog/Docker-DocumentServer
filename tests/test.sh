@@ -143,7 +143,16 @@ fi
 trap 'docker compose -p ds -f $config down' EXIT
 
 # Run test environment
-docker compose -p ds -f $config up -d
+if [[ -n ${PACKAGE_VERSION:-} ]]; then
+  : "${PACKAGE_BASEURL:?PACKAGE_BASEURL must be set with PACKAGE_VERSION}"
+  docker compose -p ds -f "$config" build \
+    --build-arg "PACKAGE_VERSION=${PACKAGE_VERSION}" \
+    --build-arg "PACKAGE_BASEURL=${PACKAGE_BASEURL}" \
+    onlyoffice-documentserver
+  docker compose -p ds -f "$config" up -d --no-build
+else
+  docker compose -p ds -f "$config" up -d
+fi
 
 wakeup_timeout=300
 

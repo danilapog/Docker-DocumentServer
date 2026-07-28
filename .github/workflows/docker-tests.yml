@@ -259,16 +259,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Run compose test
         shell: bash
         env:
+          PACKAGE_BASEURL: ${{ secrets.REPO_BASEURL }}
           TEST_WORKING_DIRECTORY: ${{ matrix.working_directory }}
           TEST_SCRIPT: ${{ matrix.script }}
           TEST_CONFIG: ${{ matrix.config }}
           TEST_VARIABLES: ${{ matrix.variables }}
         run: |
           set -euo pipefail
+
+          package_tag=$(git tag --merged HEAD \
+            --list 'v[0-9]*.[0-9]*.[0-9]*.[0-9]*' \
+            --sort=version:refname | grep -v '^v99\.99\.99\.' | tail -n1)
+          [[ -n "$package_tag" ]]
+          package_version=${package_tag#v}
+          export PACKAGE_VERSION="${package_version%.*}-${package_version##*.}"
 
           cd "${TEST_WORKING_DIRECTORY}"
           export config="${TEST_CONFIG}"
