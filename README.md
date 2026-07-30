@@ -240,8 +240,9 @@ The following dependency parameters are supported only in Enterprise and Develop
 - **DB_SCHEMA**: Database schema name (optional).
   - **PostgreSQL** — schema for [search_path](https://www.postgresql.org/docs/current/ddl-schemas.html#DDL-SCHEMAS-PATH), default `public`.
   - **MSSQL** — schema to set as [DEFAULT_SCHEMA](https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-user-transact-sql?view=sql-server-ver17#default_schema---schema_name--null-), default `dbo`.
-- **TLS_MODE**: TLS mode for supported database, AMQP and Redis connections, one of `disable`, `require`, `verify-ca` or `verify-full`.
-  - `require` encrypts traffic without certificate verification, while `verify-full` verifies certificates.
+- **DB_TLS_MODE**: TLS mode for supported database connections, one of `disable`, `require`, `verify-ca` or `verify-full`.
+- **REDIS_TLS_MODE**: TLS mode for Redis connections, one of `disable`, `require` or `verify-full`.
+- **AMQP_TLS_MODE**: TLS mode for AMQP connections, one of `disable`, `require` or `verify-full`.
 - **TLS_CA_CERT**: Path to the TLS CA certificate file.
 - **TLS_CERT**: Path to the TLS client certificate file.
 - **TLS_KEY**: Path to the TLS client private key file.

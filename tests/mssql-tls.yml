@@ -13,7 +13,7 @@ services:
       - DB_NAME=${DB_NAME:-onlyoffice}
       - DB_USER=${DB_USER:-sa}
       - DB_PWD=${DB_PWD:-Password123!}
-      - TLS_MODE=${TLS_MODE:-verify-full}
+      - DB_TLS_MODE=${DB_TLS_MODE:-verify-full}
       - TLS_CA_CERT=${TLS_CA_CERT:-/var/www/onlyoffice/Data/tls/ca.crt}
       - SSL_CERT_FILE=/var/www/onlyoffice/Data/tls/ca.crt
     stdin_open: true

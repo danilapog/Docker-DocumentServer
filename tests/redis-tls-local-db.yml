@@ -9,7 +9,7 @@ services:
     environment:
       - REDIS_SERVER_HOST=onlyoffice-redis
       - REDIS_SERVER_PORT=6379
-      - TLS_MODE=${TLS_MODE:-verify-full}
+      - REDIS_TLS_MODE=${REDIS_TLS_MODE:-verify-full}
       - TLS_CA_CERT=${TLS_CA_CERT:-/var/www/onlyoffice/Data/tls/ca.crt}
     stdin_open: true
     restart: always
