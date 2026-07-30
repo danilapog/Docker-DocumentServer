@@ -117,12 +117,13 @@ jobs:
               POSTGRES_DB=mydb
               POSTGRES_USER=myuser
 
-          - name: PostgreSQL TLS
+          - name: PostgreSQL TLS only
             working_directory: tests
             script: ./test.sh
             config: postgres-tls.yml
             variables: |
               tls_services=postgresql
+              assert_tls_isolation=true
 
           - name: PostgreSQL deprecated variables
             working_directory: tests
@@ -203,12 +204,12 @@ jobs:
             variables: |
               RABBITMQ_VERSION=3
 
-          - name: RabbitMQ TLS
+          - name: PostgreSQL, Redis and RabbitMQ TLS
             working_directory: tests
             script: ./test.sh
             config: rabbitmq-tls.yml
             variables: |
-              tls_services=postgresql rabbitmq
+              tls_services=postgresql rabbitmq redis
 
           - name: RabbitMQ deprecated variables
             working_directory: tests

@@ -176,3 +176,30 @@ else
   docker compose -p ds -f $config logs --no-color
   exit 1
 fi
+
+# Verify that database-only TLS does not leak into Redis or RabbitMQ settings.
+if [[ ${assert_tls_isolation:-false} == "true" ]]; then
+  docker compose -p ds -f "$config" exec -T onlyoffice-documentserver python3 <<'PYTHON'
+import json
+
+with open('/etc/onlyoffice/documentserver/local.json', encoding='utf-8') as file:
+    cfg = json.load(file)
+
+coauthoring = cfg.get('services', {}).get('CoAuthoring', {})
+sql = coauthoring.get('sql', {})
+redis = coauthoring.get('redis', {})
+redis_tls = any(
+    options and any(key in options for key in ('tls', 'ca', 'cert', 'key'))
+    for options in (
+        redis.get('options', {}).get('socket'),
+        redis.get('iooptions', {}).get('tls'),
+        redis.get('iooptionsClusterOptions', {}).get('tls'),
+    )
+)
+rabbit = cfg.get('rabbitmq', {})
+rabbit_tls = not rabbit.get('url', '').startswith('amqp://') or bool(rabbit.get('socketOptions'))
+if not sql.get('pgPoolExtraOptions', {}).get('ssl') or redis_tls or rabbit_tls:
+    raise RuntimeError('Database TLS settings leaked into Redis or RabbitMQ')
+print('Database TLS isolation passed.')
+PYTHON
+fi
