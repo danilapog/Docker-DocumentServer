@@ -809,8 +809,10 @@ if [[ -n "${LETS_ENCRYPT_DOMAIN}" && -n "${LETS_ENCRYPT_MAIL}" ]]; then
 fi
 
 # Background tasks: font generation, static gzip, log tailing.
+if [ ! -s "${APP_DIR}/sdkjs/common/AllFonts.js" ]; then
+  GENERATE_FONTS=true
+fi
 [ "${GENERATE_FONTS}" == "true" ] && start_process documentserver-generate-allfonts "${ONLYOFFICE_DATA_CONTAINER}"
-start_process documentserver-static-gzip "${ONLYOFFICE_DATA_CONTAINER}"
 
 echo "${JWT_MESSAGE}"
 
