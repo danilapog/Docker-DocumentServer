@@ -645,7 +645,6 @@ update_nginx_settings(){
     sed -i "${NGINX_ONLYOFFICE_CONF}" \
       -e "s,{{SSL_CERTIFICATE_PATH}},${SSL_CERTIFICATE_PATH}," \
       -e "s,{{SSL_KEY_PATH}},${SSL_KEY_PATH}," \
-      -e "s,\(443 ssl\),\1 http2," \
       -e "s,\(ssl_verify_client \).*\(;\)$,\1${SSL_VERIFY_CLIENT}\2,"
 
     if [ -r "${SSL_DHPARAM_PATH}" ]; then
