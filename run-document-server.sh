@@ -181,7 +181,7 @@ read_setting(){
   METRICS_ENABLED="${METRICS_ENABLED:-false}"
   METRICS_HOST="${METRICS_HOST:-localhost}"
   METRICS_PORT="${METRICS_PORT:-8125}"
-  METRICS_PREFIX="${METRICS_PREFIX:-.ds}"
+  METRICS_PREFIX="${METRICS_PREFIX:-ds.}"
   MSSQL_TLS_PARAMS="-C"
   case "${DB_TLS_MODE,,}" in
     ""|"disable"|"require")    DB_TLS_REJECT_UNAUTHORIZED=false ;;
