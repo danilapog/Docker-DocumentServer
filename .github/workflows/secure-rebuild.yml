@@ -79,12 +79,19 @@ jobs:
           set -euo pipefail
 
           BUILD="$(jq -c '
+            def ver_key: [splits("\\.")] | map(tonumber);
             {
               include: (
                 [
                   .releases
                   | to_entries[]
-                  | .value[]
+                  | .value
+                  | group_by(.release_tag | split(".") | .[0:3] | join("."))
+                  | map(
+                      (max_by(.source_tag | ver_key) | .source_tag) as $latest_src
+                      | map(select(.source_tag == $latest_src))
+                    )
+                  | add[]
                   | . as $release
                   | $release.editions
                   | to_entries[]
@@ -108,11 +115,18 @@ jobs:
           ' "${REBUILD_CONFIG}")"
 
           RETAG="$(jq -c '
+            def ver_key: [splits("\\.")] | map(tonumber);
             {
               include: [
                 .releases
                 | to_entries[]
-                | .value[]
+                | .value
+                | group_by(.release_tag | split(".") | .[0:3] | join("."))
+                | map(
+                    (max_by(.source_tag | ver_key) | .source_tag) as $latest_src
+                    | map(select(.source_tag == $latest_src))
+                  )
+                | add[]
                 | . as $release
                 | $release.editions
                 | to_entries[]
@@ -165,8 +179,26 @@ jobs:
       matrix: ${{ fromJSON(needs.prepare.outputs.build_matrix) }}
 
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: false
+
+          # all of these default to true, but feel free to set to
+          # "false" if necessary for your workflow
+          android: true
+          dotnet: false
+          haskell: false
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          ref: v${{ matrix.source_tag }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -245,19 +277,21 @@ jobs:
         run: |
           set -euo pipefail
 
-          SOURCE_IMAGE="${COMPANY_NAME}/base-${PRODUCT_NAME}${EDITION}:${SOURCE_TAG}"
           PATCHED_IMAGE="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${EDITION}:${SOURCE_TAG}-secure"
+          # source_tag = 9.4.1.15 → PRODUCT_VERSION=9.4.1  BUILD_NUMBER=15
+          PACKAGE_VERSION="${SOURCE_TAG%.*}"
 
-          echo "Source image: ${SOURCE_IMAGE}"
           echo "Patched image: ${PATCHED_IMAGE}"
-
-          docker buildx imagetools inspect "${SOURCE_IMAGE}"
+          echo "Package version: ${PACKAGE_VERSION}"
 
           docker buildx build \
             --platform "linux/amd64,linux/arm64" \
-            --build-arg "SOURCE_IMAGE=${SOURCE_IMAGE}" \
+            --build-arg "COMPANY_NAME=${COMPANY_NAME}" \
+            --build-arg "PRODUCT_NAME=${PRODUCT_NAME}" \
+            --build-arg "PRODUCT_EDITION=${EDITION}" \
+            --build-arg "PACKAGE_VERSION=${PACKAGE_VERSION}" \
             --tag "${PATCHED_IMAGE}" \
-            --file Dockerfile.secure \
+            --file Dockerfile \
             --push \
             .
 
