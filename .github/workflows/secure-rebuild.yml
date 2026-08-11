@@ -620,8 +620,6 @@ jobs:
                 --tag "${RELEASE_IMAGE}:${RELEASE_TAG}"
               )
 
-              TAG_LIST="${RELEASE_IMAGE}:${RELEASE_TAG}"
-
               if [ -n "${SHORT_TAGS}" ]; then
                 IFS=',' read -r -a SHORTS <<< "${SHORT_TAGS}"
                 for tag in "${SHORTS[@]}"; do
@@ -634,8 +632,6 @@ jobs:
               if [ "${IS_LATEST}" = "true" ]; then
                 PUSH_TAGS+=( --tag "${RELEASE_IMAGE}:latest" )
               fi
-
-              echo "Push tags: ${TAG_LIST} from ${SRC_IMAGE}"
 
               docker buildx imagetools create \
                 "${PUSH_TAGS[@]}" \
