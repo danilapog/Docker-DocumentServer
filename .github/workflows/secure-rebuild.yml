@@ -515,20 +515,23 @@ jobs:
             || true
 
   retag:
-    name: "Retag ${{ matrix.release_tag }}${{ matrix.edition }}"
+    name: "Retag all releases"
     needs:
       - prepare
       - rebuild
 
-    if: ${{ !inputs.dry_run }}
+    if: >-
+      ${{
+        github.event_name != 'workflow_dispatch'
+        || !inputs.dry_run
+      }}
 
     runs-on: ubuntu-latest
 
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.prepare.outputs.retag_matrix) }}
-
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -538,58 +541,106 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      - name: Create multi-arch manifest with release tags
+      - name: Retag all releases in order
         uses: nick-fields/retry@v4
         env:
-          SOURCE_TAG: ${{ matrix.source_tag }}
-          RELEASE_TAG: ${{ matrix.release_tag }}
-          SHORT_TAGS: ${{ matrix.short_tags }}
-          IS_LATEST: ${{ matrix.is_latest }}
-          EDITION: ${{ matrix.edition }}
           PRODUCT_NAME: ${{ env.PRODUCT_NAME }}
+          REBUILD_CONFIG: ${{ env.REBUILD_CONFIG }}
         with:
-          timeout_minutes: 20
+          timeout_minutes: 60
           max_attempts: 3
           retry_wait_seconds: 60
           command: |
             set -euo pipefail
-  
-            RELEASE_IMAGE="${COMPANY_NAME}/${PRODUCT_NAME}${EDITION}"
-            SRC_IMAGE="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${EDITION}:${SOURCE_TAG}-secure"
-  
-            echo "Source image: ${SRC_IMAGE}"
-            echo "Release image: ${RELEASE_IMAGE}"
-            echo "Release tag: ${RELEASE_TAG}"
-            echo "Short tags: ${SHORT_TAGS}"
-            echo "Latest: ${IS_LATEST}"
-  
-            docker buildx imagetools inspect "${SRC_IMAGE}"
-  
-            PUSH_TAGS=(
-              --tag "${RELEASE_IMAGE}:${RELEASE_TAG}"
-            )
-  
-            if [ -n "${SHORT_TAGS}" ]; then
-              IFS=',' read -r -a SHORTS <<< "${SHORT_TAGS}"
-  
-              for tag in "${SHORTS[@]}"; do
-                if [ -n "${tag}" ]; then
-                  PUSH_TAGS+=(
-                    --tag "${RELEASE_IMAGE}:${tag}"
+
+            # Build the ordered retag list, applying the same
+            # "latest source_tag per minor" filter as the build matrix.
+            #
+            # reverse: oldest releases (bottom of JSON) are pushed first,
+            # newest (top of JSON) last — so newest end up at the top of
+            # Docker Hub's tag list, which sorts by push time.
+            RETAG="$(jq -c '
+              def ver_key: [splits("\\.")] | map(tonumber);
+              [
+                .releases
+                | to_entries[]
+                | .value
+                | group_by(.release_tag | split(".") | .[0:3] | join("."))
+                | map(
+                    (max_by(.source_tag | ver_key) | .source_tag) as $latest_src
+                    | map(select(.source_tag == $latest_src))
                   )
-                fi
-              done
+                | add[]
+                | . as $release
+                | $release.editions
+                | to_entries[]
+                | {
+                    source_tag: $release.source_tag,
+                    release_tag: $release.release_tag,
+                    short_tags: ($release.short_tags | join(",")),
+                    is_latest: (.value.latest | tostring),
+                    edition: .key,
+                    sort_key: ($release.release_tag | ver_key)
+                  }
+              ]
+              | sort_by(.sort_key)
+            ' "${REBUILD_CONFIG}")"
+
+            COUNT="$(jq 'length' <<< "${RETAG}")"
+
+            if [ "${COUNT}" -eq 0 ]; then
+              echo "Retag list is empty" >&2
+              exit 1
             fi
-  
-            if [ "${IS_LATEST}" = "true" ]; then
-              PUSH_TAGS+=(
-                --tag "${RELEASE_IMAGE}:latest"
+
+            echo "Retagging ${COUNT} entries (oldest first)"
+
+            for i in $(seq 0 $((COUNT - 1))); do
+              ENTRY="$(jq -c ".[${i}]" <<< "${RETAG}")"
+
+              SOURCE_TAG="$(jq -r '.source_tag'  <<< "${ENTRY}")"
+              RELEASE_TAG="$(jq -r '.release_tag' <<< "${ENTRY}")"
+              SHORT_TAGS="$(jq -r '.short_tags'   <<< "${ENTRY}")"
+              IS_LATEST="$(jq -r '.is_latest'     <<< "${ENTRY}")"
+              EDITION="$(jq -r '.edition'         <<< "${ENTRY}")"
+
+              RELEASE_IMAGE="${COMPANY_NAME}/${PRODUCT_NAME}${EDITION}"
+              SRC_IMAGE="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${EDITION}:${SOURCE_TAG}-secure"
+
+              echo "=============================================="
+              echo "Source image:  ${SRC_IMAGE}"
+              echo "Release image: ${RELEASE_IMAGE}"
+              echo "Release tag:   ${RELEASE_TAG}"
+              echo "Short tags:    ${SHORT_TAGS}"
+              echo "Latest:        ${IS_LATEST}"
+
+              docker buildx imagetools inspect "${SRC_IMAGE}"
+
+              PUSH_TAGS=(
+                --tag "${RELEASE_IMAGE}:${RELEASE_TAG}"
               )
-            fi
-  
-            docker buildx imagetools create \
-              "${PUSH_TAGS[@]}" \
-              "${SRC_IMAGE}"
-  
-            docker buildx imagetools inspect \
-              "${RELEASE_IMAGE}:${RELEASE_TAG}"
+
+              TAG_LIST="${RELEASE_IMAGE}:${RELEASE_TAG}"
+
+              if [ -n "${SHORT_TAGS}" ]; then
+                IFS=',' read -r -a SHORTS <<< "${SHORT_TAGS}"
+                for tag in "${SHORTS[@]}"; do
+                  if [ -n "${tag}" ]; then
+                    PUSH_TAGS+=( --tag "${RELEASE_IMAGE}:${tag}" )
+                  fi
+                done
+              fi
+
+              if [ "${IS_LATEST}" = "true" ]; then
+                PUSH_TAGS+=( --tag "${RELEASE_IMAGE}:latest" )
+              fi
+
+              echo "Push tags: ${TAG_LIST} from ${SRC_IMAGE}"
+
+              docker buildx imagetools create \
+                "${PUSH_TAGS[@]}" \
+                "${SRC_IMAGE}"
+
+              docker buildx imagetools inspect \
+                "${RELEASE_IMAGE}:${RELEASE_TAG}"
+            done
