@@ -39,7 +39,7 @@ on:
         default: true
 
 env: 
-  COMPANY_NAME: "onlyoffice"
+  COMPANY_NAME: "danilaworker"
   PRODUCT_NAME: "documentserver"
       
 jobs:
@@ -135,6 +135,7 @@ jobs:
           EDITION: ${{ matrix.edition }}
           IMAGE: ${{ matrix.image }}
           PACKAGE_BASEURL: ${{ secrets.REPO_BASEURL }}
+          COMPANY_NAME: "onlyoffice"
         run: |
           set -eux
 
@@ -181,26 +182,6 @@ jobs:
           echo "branch=${BRANCH_NAME}" >> "$GITHUB_OUTPUT"
         shell: bash
 
-      # Run scanner only when edition is community 
-      # and branch hit release/ or hotfix/
-      - name: Trigger zap manualy
-        if: >-
-             matrix.edition == 'community' &&
-             matrix.platform == 'amd64' &&
-             (startsWith(steps.build-ds.outputs.branch, 'release/') ||
-              startsWith(steps.build-ds.outputs.branch, 'hotfix/'))
-        env:
-          VERSION: ${{ steps.build-ds.outputs.version }}
-          BRANCH: ${{ steps.build-ds.outputs.branch }}
-          GITHUB_TOKEN: ${{ secrets.TOKEN }}
-          REPO: ${{ github.repository }}
-        run: |
-            gh workflow run zap-ds.yaml \
-                 --repo "${REPO}" \
-                 -f branch="${BRANCH}" \
-                 -f version="${VERSION}"
-        shell: bash
-
       - name: Extract digest and image name
         id: image
         run: |
@@ -217,27 +198,6 @@ jobs:
           subject-name: ${{ steps.image.outputs.name }}
           subject-digest: ${{ steps.image.outputs.digest }}
           push-to-registry: true
-
-      # Run Trivy scans for community and developer images from release/hotfix branches.
-      - name: Trigger Trivy scan
-        if: >-
-             (matrix.edition == 'community' || matrix.edition == 'developer') &&
-             matrix.platform == 'amd64' &&
-             (startsWith(steps.build-ds.outputs.branch, 'release/') ||
-              startsWith(steps.build-ds.outputs.branch, 'hotfix/'))
-        env:
-          VERSION: ${{ steps.build-ds.outputs.version }}
-          EDITION: ${{ matrix.edition }}
-          BRANCH: ${{ steps.build-ds.outputs.branch }}
-          GITHUB_TOKEN: ${{ secrets.TOKEN }}
-          REPO: ${{ github.repository }}
-        run: |
-            gh workflow run trivy-ds.yml \
-                 --repo "${REPO}" \
-                 --ref "${BRANCH}" \
-                 -f edition="${EDITION}" \
-                 -f version="${VERSION}"
-        shell: bash
 
       - name: Save build result to file
         if: always()
@@ -387,8 +347,8 @@ jobs:
         env:
           REPO: ${{ steps.manifest.outputs.name }}
           FROM_TAGS_STR: ${{ steps.manifest.outputs.from_tags }}
-          DOCKER_PAT_USERNAME: ${{ secrets.DOCKERHUB_USERNAME_PAT }}
-          DOCKER_PAT_ACCESS_TOKEN: ${{ secrets.DOCKERHUB_TOKEN_PAT }}
+          DOCKER_PAT_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+          DOCKER_PAT_ACCESS_TOKEN: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
         run: |
           set -u
           read -ra FROM_TAGS <<< "${FROM_TAGS_STR}"
