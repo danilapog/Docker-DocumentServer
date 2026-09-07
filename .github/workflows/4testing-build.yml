@@ -385,6 +385,7 @@ jobs:
         shell: bash
 
       - name: Attest build provenance for multi-arch index
+        if: always() && steps.manifest.outputs.index_digest != ''
         uses: actions/attest@v4
         with:
           subject-name: docker.io/${{ steps.manifest.outputs.name }}
