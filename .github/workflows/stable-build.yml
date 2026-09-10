@@ -29,7 +29,7 @@ on:
         default: true
 
 env:
-  COMPANY_NAME: "onlyoffice"
+  COMPANY_NAME: "danilaworker"
   PRODUCT_NAME: "documentserver"
   VERSION: ${{ inputs.tag }}
   RELEASE_NUMBER: ${{ inputs.release_number }}
@@ -129,7 +129,7 @@ jobs:
     name: "Release image: onlyoffice4enterprise"
     runs-on: ubuntu-latest
     needs: [setup]
-    if: ${{ github.event.inputs.enterprise == 'true' }}
+    if: ${{ false }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
