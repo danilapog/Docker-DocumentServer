@@ -5,16 +5,16 @@ run-name: >-
   ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'DRY-RUN' || 'PUBLISH' }}
   ]
 
-on:
-  schedule:
-    - cron: '0 9 * * 1'
-  workflow_dispatch:
-    inputs:
-      dry_run:
-        type: boolean
-        description: "Dry run (build & test, do not retag release)"
-        required: false
-        default: false
+#on:
+#  schedule:
+#    - cron: '0 9 * * 1'
+#  workflow_dispatch:
+#    inputs:
+#      dry_run:
+#        type: boolean
+#        description: "Dry run (build & test, do not retag release)"
+#        required: false
+#        default: false
 
 concurrency:
   group: secure-rebuild
