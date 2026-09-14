@@ -5,23 +5,23 @@ run-name: >-
   ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'DRY-RUN' || 'PUBLISH' }}
   ]
 
-#on:
-#  schedule:
-#    - cron: '0 9 * * 1'
-#  workflow_dispatch:
-#    inputs:
-#      dry_run:
-#        type: boolean
-#        description: "Dry run (build & test, do not retag release)"
-#        required: false
-#        default: false
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        type: boolean
+        description: "Dry run (build & test, do not retag release)"
+        required: false
+        default: false
 
 concurrency:
   group: secure-rebuild
   cancel-in-progress: false
 
 env:
-  COMPANY_NAME: "onlyoffice"
+  COMPANY_NAME: "danilaworker"
   PRODUCT_NAME: "documentserver"
   REBUILD_CONFIG: ".github/secure-rebuild.json"
 
@@ -277,7 +277,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          PATCHED_IMAGE="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${EDITION}:${SOURCE_TAG}-secure"
+          PATCHED_IMAGE="danilaworker/4testing-${PRODUCT_NAME}${EDITION}:${SOURCE_TAG}-secure"
           # source_tag = 9.4.1.15 → PRODUCT_VERSION=9.4.1  BUILD_NUMBER=15
           PACKAGE_VERSION="${SOURCE_TAG%.*}"
 
@@ -286,7 +286,7 @@ jobs:
 
           docker buildx build \
             --platform "linux/amd64,linux/arm64" \
-            --build-arg "COMPANY_NAME=${COMPANY_NAME}" \
+            --build-arg "COMPANY_NAME=onlyoffice" \
             --build-arg "PRODUCT_NAME=${PRODUCT_NAME}" \
             --build-arg "PRODUCT_EDITION=${EDITION}" \
             --build-arg "PACKAGE_VERSION=${PACKAGE_VERSION}" \
@@ -604,8 +604,8 @@ jobs:
               IS_LATEST="$(jq -r '.is_latest'     <<< "${ENTRY}")"
               EDITION="$(jq -r '.edition'         <<< "${ENTRY}")"
 
-              RELEASE_IMAGE="${COMPANY_NAME}/${PRODUCT_NAME}${EDITION}"
-              SRC_IMAGE="${COMPANY_NAME}/4testing-${PRODUCT_NAME}${EDITION}:${SOURCE_TAG}-secure"
+              RELEASE_IMAGE="danilaworker/${PRODUCT_NAME}${EDITION}"
+              SRC_IMAGE="danilaworker/4testing-${PRODUCT_NAME}${EDITION}:${SOURCE_TAG}-secure"
 
               echo "=============================================="
               echo "Source image:  ${SRC_IMAGE}"
