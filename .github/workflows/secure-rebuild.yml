@@ -174,6 +174,11 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
 
+    permissions:
+      id-token: write
+      contents: read
+      attestations: write
+
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.prepare.outputs.build_matrix) }}
@@ -292,10 +297,40 @@ jobs:
             --build-arg "PACKAGE_VERSION=${PACKAGE_VERSION}" \
             --tag "${PATCHED_IMAGE}" \
             --file Dockerfile \
+            --metadata-file metadata.json \
             --push \
             .
 
           echo "patched_image=${PATCHED_IMAGE}" >> "${GITHUB_OUTPUT}"
+
+      - name: Extract secure image digest
+        id: image
+        env:
+          EDITION: ${{ matrix.edition }}
+        run: |
+          set -euo pipefail
+
+          IMAGE="danilaworker/4testing-${PRODUCT_NAME}${EDITION}"
+          DIGEST="$(jq -r '."containerimage.digest"' metadata.json)"
+
+          if [ -z "${DIGEST}" ] || [ "${DIGEST}" = "null" ]; then
+            echo "Failed to get image digest from metadata.json" >&2
+            cat metadata.json >&2
+            exit 1
+          fi
+
+          echo "Image: ${IMAGE}"
+          echo "Digest: ${DIGEST}"
+
+          echo "name=${IMAGE}" >> "${GITHUB_OUTPUT}"
+          echo "digest=${DIGEST}" >> "${GITHUB_OUTPUT}"
+
+      - name: Attest secure image
+        uses: actions/attest@v4
+        with:
+          subject-name: docker.io/${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true
 
       - name: Return dep.tests
         run: |
