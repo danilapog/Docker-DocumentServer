@@ -204,6 +204,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: v${{ matrix.source_tag }}
+          repository: ONLYOFFICE/Docker-DocumentServer
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
