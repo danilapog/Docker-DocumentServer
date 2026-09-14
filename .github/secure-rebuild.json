@@ -10,10 +10,10 @@
         ],
         "editions": {
           "-ee": {
-            "latest": false
+            "latest": true
           },
           "-de": {
-            "latest": false
+            "latest": true
           }
         }
       },
