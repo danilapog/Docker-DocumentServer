@@ -368,10 +368,23 @@ def example_new_file(ext):
 
 # ------------------------------------------------------------------ 1. container
 
+def fonts_generating():
+    # [s] keeps the pattern from matching the grep command line itself
+    return docker("exec", CONTAINER, "sh", "-c",
+                  "grep -qs 'generate-allfont[s]' /proc/[0-9]*/cmdline").returncode == 0
+
+
 @check
 def healthcheck():
+    """The container is ready when the healthcheck is green AND the font generation started by
+    the entrypoint has finished: at the end it restarts docservice, dropping open editors."""
     wait_until(lambda: get("/healthcheck", timeout=10)[:2] == (200, b"true"),
                START_TIMEOUT, 5, "healthcheck answering true")
+    started = time.monotonic()
+    wait_until(lambda: not fonts_generating(), 600, 5, "font generation (documentserver-generate-allfonts)")
+    wait_until(lambda: get("/healthcheck", timeout=10)[:2] == (200, b"true"),
+               START_TIMEOUT, 5, "healthcheck after the font generation")
+    print(f"    font generation finished, waited {time.monotonic() - started:.0f}s")
 
 
 @check
@@ -638,7 +651,7 @@ def editor_docx_edit_and_save():
         key = document_key(driver)
         if key:
             data = command({"c": "forcesave", "key": key})
-            meaning = {0: "Docs has the typed changes",
+            meaning = {0: "command accepted, see the docservice log for what Docs did with it",
                        4: "Docs has NO changes: the typed text did not reach the server"}
             print(f"    forcesave {key}: {data} ({meaning.get(data.get('error'), COMMAND_ERRORS.get(data.get('error'), '?'))})")
         else:
