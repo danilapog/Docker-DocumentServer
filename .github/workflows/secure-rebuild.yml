@@ -362,9 +362,18 @@ jobs:
           set -euo pipefail
 
           export SMOKE_TITLE="${SOURCE_TAG}${EDITION}"
-
+          export SMOKE_ARTIFACTS="${RUNNER_TEMP}/smoke-artifacts"
           python3 smoke-ci/.github/scripts/smoke.py
 
+      - name: Upload smoke screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-${{ matrix.source_tag }}${{ matrix.edition }}
+          path: ${{ runner.temp }}/smoke-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
+          
       - name: Container logs
         if: failure()
         run: |
