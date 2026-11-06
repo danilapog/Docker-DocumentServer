@@ -201,7 +201,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          reposifoty: ONLYOFFICE/Docker-DocumentServer
+          repository: ONLYOFFICE/Docker-DocumentServer
           ref: v${{ matrix.source_tag }}
 
       - name: Set up QEMU
