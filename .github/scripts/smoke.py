@@ -30,6 +30,7 @@ Env:
   SMOKE_FILES_HOST  host name of the runner seen from the container
                                                        (default host.docker.internal)
   SMOKE_ONLY        regex, run only the checks whose name matches
+  SMOKE_ARTIFACTS   directory for browser screenshots (empty = no screenshots)
 """
 import base64
 import hashlib
@@ -57,6 +58,7 @@ CONTAINER = os.environ.get("DS_CONTAINER", "documentserver")
 JWT_SECRET = os.environ.get("SMOKE_JWT_SECRET", "")
 FILES_HOST = os.environ.get("SMOKE_FILES_HOST", "host.docker.internal")
 SMOKE_ONLY = os.environ.get("SMOKE_ONLY", "")
+ARTIFACTS = os.environ.get("SMOKE_ARTIFACTS", "")
 
 CONVERT_TIMEOUT = 180   # seconds per conversion
 SAVE_TIMEOUT = 180      # seconds for an edited document to reach the storage
@@ -536,15 +538,46 @@ def dump_page(driver):
         print(f"    could not collect browser diagnostics: {error}")
 
 
+def screenshot(driver, name):
+    if not ARTIFACTS:
+        return
+    os.makedirs(ARTIFACTS, exist_ok=True)
+    path = os.path.join(ARTIFACTS, f"{name}.png")
+    try:
+        driver.save_screenshot(path)
+        print(f"    screenshot: {path}")
+    except Exception as error:  # noqa: BLE001 - diagnostics must not hide the failure
+        print(f"    could not save a screenshot: {error}")
+
+
+VISIBLE_DIALOGS_JS = """
+return [].filter.call(document.querySelectorAll('.asc-window'), function (w) { return w.offsetParent !== null; })
+         .map(function (w) { return w.innerText.replace(/\\s+/g, ' ').slice(0, 200); });
+"""
+
+
 def dismiss_dialogs(driver):
     """Closes notices that may cover the editor (e.g. trial or license messages)."""
     from selenium.webdriver.common.by import By
     for _ in range(5):
         buttons = [b for b in driver.find_elements(By.CSS_SELECTOR, "button.dlg-btn[result='ok']") if b.is_displayed()]
         if not buttons:
-            return
+            break
+        text = driver.execute_script(
+            "var w = arguments[0].closest('.asc-window'); return w ? w.innerText : '';", buttons[-1])
+        print(f"    dismissed dialog: {' '.join((text or '').split())[:200]!r}")
         driver.execute_script("arguments[0].click();", buttons[-1])
         time.sleep(1)
+    for text in driver.execute_script(VISIBLE_DIALOGS_JS) or []:
+        print(f"    dialog still open: {text!r}")
+
+
+def document_key(driver):
+    """Key of the open document from the example page config (for diagnostics only)."""
+    driver.switch_to.default_content()
+    return driver.execute_script(
+        "try { return window.config && window.config.document && window.config.document.key || null; }"
+        " catch (e) { return null; }")
 
 
 def open_editor(driver, ext, attempts=3, timeout=60):
@@ -592,17 +625,49 @@ def editor_docx_edit_and_save():
     try:
         name = open_editor(driver, "docx")
         driver.find_element(By.ID, "editor_sdk").click()
+        time.sleep(10)
         ActionChains(driver).send_keys(MARKER).perform()
         time.sleep(3)
         ActionChains(driver).key_down(Keys.CONTROL).send_keys("s").key_up(Keys.CONTROL).perform()
         time.sleep(5)
+        screenshot(driver, "docx-after-typing")
+        for text in driver.execute_script(VISIBLE_DIALOGS_JS) or []:
+            print(f"    dialog open after typing: {text!r}")
+
+        # Diagnostics: tells "the text never reached Docs" apart from "Docs did not save it"
+        key = document_key(driver)
+        if key:
+            data = command({"c": "forcesave", "key": key})
+            meaning = {0: "Docs has the typed changes",
+                       4: "Docs has NO changes: the typed text did not reach the server"}
+            print(f"    forcesave {key}: {data} ({meaning.get(data.get('error'), COMMAND_ERRORS.get(data.get('error'), '?'))})")
+        else:
+            print("    document key not found on the example page, forcesave diagnostics skipped")
+
+        # Leave the editor the way a user does, so it can flush and disconnect cleanly
+        driver.get("about:blank")
+        time.sleep(3)
     except Exception:
         dump_page(driver)
         raise
     finally:
         driver.quit()  # the last editor leaves: Docs assembles the file and calls the example back
-    wait_until(lambda: saved_docx_has_marker(name), SAVE_TIMEOUT, 5, f"saved {name} containing the typed text")
+    try:
+        wait_until(lambda: saved_docx_has_marker(name), SAVE_TIMEOUT, 5, f"saved {name} containing the typed text")
+    except AssertionError:
+        print_container_logs()
+        raise
     STATE["saved_docx"] = name
+
+
+def print_container_logs():
+    """The save goes docservice -> callback to the example -> example storage: show both sides."""
+    for path in ("/var/log/onlyoffice/documentserver-example/out.log",
+                 "/var/log/onlyoffice/documentserver/docservice/out.log"):
+        result = docker("exec", CONTAINER, "tail", "-n", "60", path)
+        print(f"    === {path} ===")
+        for line in (result.stdout or result.stderr).splitlines():
+            print(f"    {line}")
 
 
 def open_only(ext):
