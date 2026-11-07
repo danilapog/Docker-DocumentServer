@@ -66,7 +66,13 @@ START_TIMEOUT = 300     # seconds for the container to answer the healthcheck
 
 # A unique marker per run: found in a result, it proves the result was produced
 # from our source by this run and not taken from a cache or a template.
+# Always compared case-insensitively (has_marker): the editor autocorrects the
+# first letter of a sentence to upper case.
 MARKER = "smoke" + uuid.uuid4().hex[:12]
+
+
+def has_marker(text):
+    return MARKER.lower() in text.lower()
 
 CONVERT_ERRORS = {
     -1: "unknown error", -2: "conversion timeout", -3: "conversion error",
@@ -169,7 +175,7 @@ def pdf_text(content):
 
 
 def assert_marker(text, where):
-    assert MARKER in text, f"{where} does not contain the marker {MARKER!r}: {text[:300]!r}"
+    assert has_marker(text), f"{where} does not contain the marker {MARKER!r}: {text[:300]!r}"
 
 
 def png_size(content):
@@ -585,14 +591,6 @@ def dismiss_dialogs(driver):
         print(f"    dialog still open: {text!r}")
 
 
-def document_key(driver):
-    """Key of the open document from the example page config (for diagnostics only)."""
-    driver.switch_to.default_content()
-    return driver.execute_script(
-        "try { return window.config && window.config.document && window.config.document.key || null; }"
-        " catch (e) { return null; }")
-
-
 def open_editor(driver, ext, attempts=3, timeout=60):
     """Opens a new file of ext through the example; returns the file name.
     A stuck editor never recovers on its own, so it is reloaded between attempts."""
@@ -624,7 +622,7 @@ def open_editor(driver, ext, attempts=3, timeout=60):
 
 
 def saved_docx_has_marker(name):
-    return MARKER in xml_text(example_download(name), "word/")
+    return has_marker(xml_text(example_download(name), "word/"))
 
 
 @check
@@ -646,16 +644,6 @@ def editor_docx_edit_and_save():
         screenshot(driver, "docx-after-typing")
         for text in driver.execute_script(VISIBLE_DIALOGS_JS) or []:
             print(f"    dialog open after typing: {text!r}")
-
-        # Diagnostics: tells "the text never reached Docs" apart from "Docs did not save it"
-        key = document_key(driver)
-        if key:
-            data = command({"c": "forcesave", "key": key})
-            meaning = {0: "command accepted, see the docservice log for what Docs did with it",
-                       4: "Docs has NO changes: the typed text did not reach the server"}
-            print(f"    forcesave {key}: {data} ({meaning.get(data.get('error'), COMMAND_ERRORS.get(data.get('error'), '?'))})")
-        else:
-            print("    document key not found on the example page, forcesave diagnostics skipped")
 
         # Leave the editor the way a user does, so it can flush and disconnect cleanly
         driver.get("about:blank")
