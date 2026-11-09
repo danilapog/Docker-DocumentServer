@@ -50,6 +50,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -374,10 +375,30 @@ def example_new_file(ext):
 
 # ------------------------------------------------------------------ 1. container
 
+ALLFONTS = "/var/www/onlyoffice/documentserver/sdkjs/common/AllFonts.js"
+
+
+def container_started_at():
+    """Container start time (epoch seconds); changes on every docker restart."""
+    result = docker("inspect", "-f", "{{.State.StartedAt}}", CONTAINER)
+    assert result.returncode == 0, f"docker inspect: {result.stderr.strip()}"
+    # e.g. 2026-11-06T15:18:30.123456789Z: seconds precision is enough
+    return datetime.fromisoformat(result.stdout.strip()[:19] + "+00:00").timestamp()
+
+
 def fonts_generating():
     # [s] keeps the pattern from matching the grep command line itself
     return docker("exec", CONTAINER, "sh", "-c",
                   "grep -qs 'generate-allfont[s]' /proc/[0-9]*/cmdline").returncode == 0
+
+
+def fonts_generated_since(started):
+    """True once the entrypoint's font generation has run AND finished in this container start:
+    AllFonts.js is rewritten after the start and the generator process is gone. Waiting only for
+    the process to be absent is not enough: it may not have been spawned yet."""
+    result = docker("exec", CONTAINER, "stat", "-c", "%Y", ALLFONTS)
+    assert result.returncode == 0, f"stat {ALLFONTS}: {result.stderr.strip()}"
+    return int(result.stdout.strip()) >= int(started) and not fonts_generating()
 
 
 @check
@@ -386,11 +407,13 @@ def healthcheck():
     the entrypoint has finished: at the end it restarts docservice, dropping open editors."""
     wait_until(lambda: get("/healthcheck", timeout=10)[:2] == (200, b"true"),
                START_TIMEOUT, 5, "healthcheck answering true")
-    started = time.monotonic()
-    wait_until(lambda: not fonts_generating(), 600, 5, "font generation (documentserver-generate-allfonts)")
+    started = container_started_at()
+    waited = time.monotonic()
+    wait_until(lambda: fonts_generated_since(started), 600, 5,
+               "font generation (documentserver-generate-allfonts) in this container start")
     wait_until(lambda: get("/healthcheck", timeout=10)[:2] == (200, b"true"),
                START_TIMEOUT, 5, "healthcheck after the font generation")
-    print(f"    font generation finished, waited {time.monotonic() - started:.0f}s")
+    print(f"    font generation finished, waited {time.monotonic() - waited:.0f}s")
 
 
 @check
