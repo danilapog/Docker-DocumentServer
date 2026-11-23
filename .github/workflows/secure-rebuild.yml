@@ -241,7 +241,7 @@ jobs:
           echo "Dockerfile:      ${DOCKERFILE}"
 
           docker buildx build \
-            --platform "linux/amd64" \
+            --platform "linux/amd64,linux/arm64" \
             --build-arg "COMPANY_NAME=${COMPANY_NAME}" \
             --build-arg "PRODUCT_NAME=${PRODUCT_NAME}" \
             --build-arg "PRODUCT_EDITION=${EDITION}" \
