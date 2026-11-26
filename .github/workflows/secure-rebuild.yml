@@ -303,6 +303,56 @@ jobs:
           path: smoke-ci
           sparse-checkout: .github/scripts
 
+      - name: Set up Trivy
+        uses: aquasecurity/setup-trivy@e07451d2e059ed86c2870430ea286b3a9e0bf241
+        with:
+          version: v0.76.2
+
+      # Informational: compares the currently published image of this release line
+      # with the freshly rebuilt one. Does not block smoke tests.
+      - name: CVE diff (published vs secure)
+        continue-on-error: true
+        env:
+          BASELINE: ${{ env.COMPANY_NAME }}/${{ env.PRODUCT_NAME }}${{ matrix.edition }}:${{ matrix.test_tag }}
+          PATCHED: ${{ steps.build.outputs.patched_image }}
+        run: |
+          set -euo pipefail
+
+          REPORTS="${RUNNER_TEMP}/cve-diff"
+          mkdir -p "${REPORTS}"
+
+          if ! docker buildx imagetools inspect "${BASELINE}" >/dev/null 2>&1; then
+            echo "Baseline image ${BASELINE} is not published yet, skipping CVE diff" | tee -a "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+
+          for arch in amd64 arm64; do
+            # Both scans must use the same vulnerability DB, otherwise DB updates
+            # between them show up as false "new"/"fixed" entries.
+            trivy image --image-src remote --platform "linux/${arch}" \
+              --scanners vuln --format json --exit-code 0 --no-progress --timeout 25m \
+              --output "${REPORTS}/baseline-${arch}.json" "${BASELINE}"
+
+            trivy image --image-src remote --platform "linux/${arch}" \
+              --scanners vuln --format json --exit-code 0 --no-progress --timeout 25m \
+              --skip-db-update --skip-java-db-update \
+              --output "${REPORTS}/patched-${arch}.json" "${PATCHED}"
+
+            python3 smoke-ci/.github/scripts/cve-diff.py \
+              --title "${BASELINE} → ${PATCHED} (linux/${arch})" \
+              "${REPORTS}/baseline-${arch}.json" "${REPORTS}/patched-${arch}.json" \
+              | tee "${REPORTS}/diff-${arch}.md" >> "${GITHUB_STEP_SUMMARY}"
+          done
+
+      - name: Upload CVE diff reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cve-diff-${{ matrix.source_tag }}${{ matrix.edition }}
+          path: ${{ runner.temp }}/cve-diff/
+          if-no-files-found: ignore
+          retention-days: 30
+
       - name: Install smoke test dependencies
         run: |
           set -euo pipefail
